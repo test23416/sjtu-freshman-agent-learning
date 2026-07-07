@@ -5,7 +5,12 @@ from app.schemas import ChatRequest,ChatResponse
 
 def chat_with_agent(request:ChatRequest) ->ChatResponse:
     results = search_knowledge(request.message)
-    answer,used_llm = generate_answer(request.message,results)
+    answer, used_llm = generate_answer(
+    question=request.message,
+    contexts=results,
+    history=request.history,
+    profile = request.profile
+)
 
     return ChatResponse(
         answer=answer,

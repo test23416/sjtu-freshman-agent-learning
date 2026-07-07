@@ -17,7 +17,19 @@ def generate_fallback_answer(question: str, contexts: list[dict]) -> str:
     )
 
 
-def build_prompt(question: str, contexts: list[dict]) -> str:
+def build_prompt(question: str, contexts: list[dict], history: list = None, profile = None) -> str:
+    history = history or []
+
+    if profile:
+        profile_text = profile.model_dump_json(exclude_none=True)
+    else:
+        profile_text = "无"
+        
+    history_text = "\n".join(
+        f"{item.role}:{item.content}"
+        for item in history[-8:]
+    )
+
     context_text = "\n\n".join(
         f"资料 {index}：{item['title']}\n来源：{item['source']}\n内容：{item['content']}"
         for index, item in enumerate(contexts, start=1)
@@ -29,7 +41,10 @@ def build_prompt(question: str, contexts: list[dict]) -> str:
 如果资料不足，请明确说明需要以学校或学院最新官方通知为准。
 不要编造日期、地点、政策细节。
 
-用户问题：
+历史对话：
+{history_text or "无"}
+
+最新用户问题：
 {question}
 
 参考资料：
@@ -37,12 +52,13 @@ def build_prompt(question: str, contexts: list[dict]) -> str:
 """
 
 
-def generate_answer(question: str, contexts: list[dict]) -> tuple[str, bool]:
+def generate_answer(question: str, contexts: list[dict], history: list = None, profile = None) -> tuple[str, bool]:
     if not OPENAI_API_KEY:
-        print("没有读取到 OPENAI_API_KEY，使用本地回答")
+        print("没有读取到 OPENAI_API_KE,使用本地回答")
         return generate_fallback_answer(question, contexts), False
 
-    prompt = build_prompt(question, contexts)
+    history = history or []
+    prompt = build_prompt(question, contexts,history,profile)
 
     print("准备调用大模型")
     print("BASE_URL:", OPENAI_BASE_URL)

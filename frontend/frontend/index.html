@@ -116,6 +116,23 @@
         font-size: 14px;
         margin: 4px 0;
       }
+
+      .source-toggle {
+        width: 100%;
+        text-align: left;
+        border: none;
+        background: transparent;
+        padding: 0;
+        font-size: 14px;
+        cursor: pointer;
+        color: #333;
+      }
+
+      .source-content {
+        margin-top: 8px;
+        color: #444;
+        line-height: 1.6;
+      }
     </style>
   </head>
   <body>
@@ -128,7 +145,13 @@
           placeholder="例如：新生入学前要准备什么？"
         ></textarea>
         <br />
+
+        <input id="campus" placeholder="校区，例如：闵行校区" />
+        <input id="college" placeholder="学院，例如：电子信息与电气工程学院" />
+        <input id="major" placeholder="专业，例如：计算机科学与技术" />
+        <input id="dormArea" placeholder="宿舍区域，例如：东区" />
         <button id="sendButton">发送</button>
+        <button id="clearButton" type="button">清空对话</button>
 
         <div id="error" class="error"></div>
         <div id="chatLog" class="chat-log"></div>
@@ -136,10 +159,25 @@
     </main>
 
     <script>
+      const STORAGE_KEY = "sjtu_freshman_chat_history";
+      let chatHistory = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+
+      function saveHistory() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(chatHistory));
+      }
+
       const messageInput = document.getElementById("message");
       const sendButton = document.getElementById("sendButton");
       const chatLog = document.getElementById("chatLog");
       const errorBox = document.getElementById("error");
+      const clearButton = document.getElementById("clearButton");
+      const profile = {
+        campus: document.getElementById("campus").value.trim() || null,
+        college: document.getElementById("college").value.trim() || null,
+        major: document.getElementById("major").value.trim() || null,
+        dorm_area: document.getElementById("dormArea").value.trim() || null,
+        international_student: false,
+      };
 
       function appendMessage(role, content, sources = [], usedLlm = null) {
         const message = document.createElement("div");
@@ -176,20 +214,24 @@
               const item = document.createElement("div");
               item.className = "source";
 
-              const sourceTitle = document.createElement("div");
-              sourceTitle.className = "source-title";
-              sourceTitle.textContent = source.title;
+              const header = document.createElement("button");
+              header.className = "source-toggle";
+              header.type = "button";
+              header.textContent = `▶ ${source.title} | ${source.source} | 相关度：${source.score}`;
 
-              const sourceMeta = document.createElement("div");
-              sourceMeta.className = "source-meta";
-              sourceMeta.textContent = `来源：${source.source} | 相关度：${source.score}`;
+              const content = document.createElement("div");
+              content.className = "source-content";
+              content.textContent = source.content;
+              content.style.display = "none";
 
-              const sourceContent = document.createElement("div");
-              sourceContent.textContent = source.content;
+              header.addEventListener("click", () => {
+                const isHidden = content.style.display === "none";
+                content.style.display = isHidden ? "block" : "none";
+                header.textContent = `${isHidden ? "▼" : "▶"} ${source.title} | ${source.source} | 相关度：${source.score}`;
+              });
 
-              item.appendChild(sourceTitle);
-              item.appendChild(sourceMeta);
-              item.appendChild(sourceContent);
+              item.appendChild(header);
+              item.appendChild(content);
               sourcesBox.appendChild(item);
             });
           }
@@ -224,6 +266,8 @@
             },
             body: JSON.stringify({
               message: message,
+              history: chatHistory,
+              profile: profile,
             }),
           });
 
@@ -238,6 +282,18 @@
             data.sources || [],
             data.used_llm,
           );
+
+          chatHistory.push({
+            role: "user",
+            content: message,
+          });
+
+          chatHistory.push({
+            role: "assistant",
+            content: data.answer,
+          });
+
+          saveHistory();
         } catch (error) {
           errorBox.textContent = "请求失败：" + error.message;
         } finally {
@@ -247,7 +303,18 @@
         }
       }
 
+      chatHistory.forEach((message) => {
+        appendMessage(message.role, message.content);
+      });
+
       sendButton.addEventListener("click", sendMessage);
+
+      clearButton.addEventListener("click", () => {
+        chatHistory = [];
+        localStorage.removeItem(STORAGE_KEY);
+        chatLog.innerHTML = "";
+        errorBox.textContent = "";
+      });
 
       messageInput.addEventListener("keydown", (event) => {
         if (event.key === "Enter" && !event.shiftKey) {
