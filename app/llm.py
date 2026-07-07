@@ -17,14 +17,14 @@ def generate_fallback_answer(question: str, contexts: list[dict]) -> str:
     )
 
 
-def build_prompt(question: str, contexts: list[dict], history: list = None, profile = None) -> str:
+def build_prompt(question: str, contexts: list[dict], history: list = None, profile = None,tool_results: list[dict] = None) -> str:
     history = history or []
 
     if profile:
         profile_text = profile.model_dump_json(exclude_none=True)
     else:
         profile_text = "无"
-        
+
     history_text = "\n".join(
         f"{item.role}:{item.content}"
         for item in history[-8:]
@@ -52,13 +52,19 @@ def build_prompt(question: str, contexts: list[dict], history: list = None, prof
 """
 
 
-def generate_answer(question: str, contexts: list[dict], history: list = None, profile = None) -> tuple[str, bool]:
+def generate_answer(question: str, contexts: list[dict], history: list = None, profile = None,tool_results: list[dict] = None) -> tuple[str, bool]:
     if not OPENAI_API_KEY:
         print("没有读取到 OPENAI_API_KE,使用本地回答")
         return generate_fallback_answer(question, contexts), False
 
     history = history or []
-    prompt = build_prompt(question, contexts,history,profile)
+    prompt = build_prompt(
+    question=question,
+    contexts=contexts,
+    history=history,
+    profile=profile,
+    tool_results=tool_results,
+    )
 
     print("准备调用大模型")
     print("BASE_URL:", OPENAI_BASE_URL)
