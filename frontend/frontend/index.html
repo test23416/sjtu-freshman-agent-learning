@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>交大新生助手</title>
+    <style>
+      body {
+        font-family: Arial, "Microsoft YaHei", sans-serif;
+        background: #f6f7fb;
+        margin: 0;
+        color: #222;
+      }
+
+      main {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 0 20px;
+      }
+
+      textarea {
+        width: 100%;
+        height: 100px;
+        padding: 12px;
+        font-size: 16px;
+        box-sizing: border-box;
+      }
+
+      button {
+        margin-top: 12px;
+        padding: 10px 18px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+
+      .card {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+      }
+
+      .answer {
+        margin-top: 24px;
+        line-height: 1.7;
+        white-space: pre-wrap;
+      }
+
+      .source {
+        margin-top: 12px;
+        padding: 12px;
+        border: 1px solid #e5e5e5;
+        background: #fafafa;
+        border-radius: 6px;
+      }
+
+      .source-title {
+        font-weight: bold;
+      }
+
+      .source-meta {
+        color: #666;
+        font-size: 14px;
+        margin: 6px 0;
+      }
+
+      .error {
+        color: #c00;
+        margin-top: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>交大新生助手</h1>
+
+      <div class="card">
+        <textarea
+          id="message"
+          placeholder="例如：新生入学前要准备什么？"
+        ></textarea>
+        <br />
+        <button id="sendButton">发送</button>
+
+        <div id="error" class="error"></div>
+        <div id="answer" class="answer"></div>
+        <div id="sources"></div>
+      </div>
+    </main>
+
+    <script>
+      const messageInput = document.getElementById("message");
+      const sendButton = document.getElementById("sendButton");
+      const answerBox = document.getElementById("answer");
+      const sourcesBox = document.getElementById("sources");
+      const errorBox = document.getElementById("error");
+
+      sendButton.addEventListener("click", async () => {
+        const message = messageInput.value.trim();
+
+        if (!message) {
+          errorBox.textContent = "请先输入问题。";
+          return;
+        }
+
+        sendButton.disabled = true;
+        sendButton.textContent = "思考中...";
+        errorBox.textContent = "";
+        answerBox.textContent = "";
+        sourcesBox.innerHTML = "";
+
+        try {
+          const response = await fetch("http://127.0.0.1:8000/api/chat", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              message: message,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error("后端返回错误：" + response.status);
+          }
+
+          const data = await response.json();
+
+          answerBox.textContent = data.answer;
+
+          const title = document.createElement("h3");
+          title.textContent = "参考来源";
+          sourcesBox.appendChild(title);
+
+          if (!data.sources || data.sources.length === 0) {
+            const empty = document.createElement("div");
+            empty.textContent = "没有匹配到知识库来源。";
+            sourcesBox.appendChild(empty);
+            return;
+          }
+
+          data.sources.forEach((source) => {
+            const item = document.createElement("div");
+            item.className = "source";
+
+            const sourceTitle = document.createElement("div");
+            sourceTitle.className = "source-title";
+            sourceTitle.textContent = source.title;
+
+            const meta = document.createElement("div");
+            meta.className = "source-meta";
+            meta.textContent = `来源：${source.source} | 相关度：${source.score}`;
+
+            const content = document.createElement("div");
+            content.textContent = source.content;
+
+            item.appendChild(sourceTitle);
+            item.appendChild(meta);
+            item.appendChild(content);
+            sourcesBox.appendChild(item);
+          });
+        } catch (error) {
+          errorBox.textContent = "请求失败：" + error.message;
+        } finally {
+          sendButton.disabled = false;
+          sendButton.textContent = "发送";
+        }
+      });
+    </script>
+  </body>
+</html>
