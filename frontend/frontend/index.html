@@ -67,6 +67,55 @@
         color: #c00;
         margin-top: 12px;
       }
+
+      .chat-log {
+        margin-top: 24px;
+      }
+
+      .message {
+        margin-bottom: 18px;
+        padding: 14px;
+        border-radius: 8px;
+        line-height: 1.7;
+        white-space: pre-wrap;
+      }
+
+      .message.user {
+        background: #e8f1ff;
+        border: 1px solid #c9defc;
+      }
+
+      .message.assistant {
+        background: #ffffff;
+        border: 1px solid #e5e5e5;
+      }
+
+      .message-role {
+        font-weight: bold;
+        margin-bottom: 6px;
+      }
+
+      .sources {
+        margin-top: 12px;
+      }
+
+      .source {
+        margin-top: 8px;
+        padding: 10px;
+        border: 1px solid #e5e5e5;
+        background: #fafafa;
+        border-radius: 6px;
+      }
+
+      .source-title {
+        font-weight: bold;
+      }
+
+      .source-meta {
+        color: #666;
+        font-size: 14px;
+        margin: 4px 0;
+      }
     </style>
   </head>
   <body>
@@ -82,19 +131,77 @@
         <button id="sendButton">发送</button>
 
         <div id="error" class="error"></div>
-        <div id="answer" class="answer"></div>
-        <div id="sources"></div>
+        <div id="chatLog" class="chat-log"></div>
       </div>
     </main>
 
     <script>
       const messageInput = document.getElementById("message");
       const sendButton = document.getElementById("sendButton");
-      const answerBox = document.getElementById("answer");
-      const sourcesBox = document.getElementById("sources");
+      const chatLog = document.getElementById("chatLog");
       const errorBox = document.getElementById("error");
 
-      sendButton.addEventListener("click", async () => {
+      function appendMessage(role, content, sources = [], usedLlm = null) {
+        const message = document.createElement("div");
+        message.className = "message " + role;
+
+        const roleBox = document.createElement("div");
+        roleBox.className = "message-role";
+        roleBox.textContent = role === "user" ? "你" : "新生助手";
+
+        const contentBox = document.createElement("div");
+        contentBox.textContent = content;
+
+        message.appendChild(roleBox);
+        message.appendChild(contentBox);
+
+        if (role === "assistant") {
+          const meta = document.createElement("div");
+          meta.className = "source-meta";
+          meta.textContent = usedLlm
+            ? "已使用大模型生成回答"
+            : "使用本地知识库回答";
+          message.appendChild(meta);
+
+          const sourcesBox = document.createElement("div");
+          sourcesBox.className = "sources";
+
+          if (sources.length > 0) {
+            const title = document.createElement("div");
+            title.className = "message-role";
+            title.textContent = "参考来源";
+            sourcesBox.appendChild(title);
+
+            sources.forEach((source) => {
+              const item = document.createElement("div");
+              item.className = "source";
+
+              const sourceTitle = document.createElement("div");
+              sourceTitle.className = "source-title";
+              sourceTitle.textContent = source.title;
+
+              const sourceMeta = document.createElement("div");
+              sourceMeta.className = "source-meta";
+              sourceMeta.textContent = `来源：${source.source} | 相关度：${source.score}`;
+
+              const sourceContent = document.createElement("div");
+              sourceContent.textContent = source.content;
+
+              item.appendChild(sourceTitle);
+              item.appendChild(sourceMeta);
+              item.appendChild(sourceContent);
+              sourcesBox.appendChild(item);
+            });
+          }
+
+          message.appendChild(sourcesBox);
+        }
+
+        chatLog.appendChild(message);
+        message.scrollIntoView({ behavior: "smooth", block: "end" });
+      }
+
+      async function sendMessage() {
         const message = messageInput.value.trim();
 
         if (!message) {
@@ -102,11 +209,12 @@
           return;
         }
 
+        appendMessage("user", message);
+        messageInput.value = "";
+
         sendButton.disabled = true;
         sendButton.textContent = "思考中...";
         errorBox.textContent = "";
-        answerBox.textContent = "";
-        sourcesBox.innerHTML = "";
 
         try {
           const response = await fetch("http://127.0.0.1:8000/api/chat", {
@@ -124,45 +232,27 @@
           }
 
           const data = await response.json();
-
-          answerBox.textContent = data.answer;
-
-          const title = document.createElement("h3");
-          title.textContent = "参考来源";
-          sourcesBox.appendChild(title);
-
-          if (!data.sources || data.sources.length === 0) {
-            const empty = document.createElement("div");
-            empty.textContent = "没有匹配到知识库来源。";
-            sourcesBox.appendChild(empty);
-            return;
-          }
-
-          data.sources.forEach((source) => {
-            const item = document.createElement("div");
-            item.className = "source";
-
-            const sourceTitle = document.createElement("div");
-            sourceTitle.className = "source-title";
-            sourceTitle.textContent = source.title;
-
-            const meta = document.createElement("div");
-            meta.className = "source-meta";
-            meta.textContent = `来源：${source.source} | 相关度：${source.score}`;
-
-            const content = document.createElement("div");
-            content.textContent = source.content;
-
-            item.appendChild(sourceTitle);
-            item.appendChild(meta);
-            item.appendChild(content);
-            sourcesBox.appendChild(item);
-          });
+          appendMessage(
+            "assistant",
+            data.answer,
+            data.sources || [],
+            data.used_llm,
+          );
         } catch (error) {
           errorBox.textContent = "请求失败：" + error.message;
         } finally {
           sendButton.disabled = false;
           sendButton.textContent = "发送";
+          messageInput.focus();
+        }
+      }
+
+      sendButton.addEventListener("click", sendMessage);
+
+      messageInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          sendMessage();
         }
       });
     </script>
