@@ -133,11 +133,26 @@
         color: #444;
         line-height: 1.6;
       }
+      .server-status {
+        margin-bottom: 16px;
+        font-size: 14px;
+        color: #666;
+      }
+
+      .server-status.ok {
+        color: #16803c;
+      }
+
+      .server-status.error {
+        color: #c00;
+      }
     </style>
   </head>
   <body>
     <main>
       <h1>交大新生助手</h1>
+
+      <div id="serverStatus" class="server-status">正在检查后端连接...</div>
 
       <div class="card">
         <textarea
@@ -171,6 +186,8 @@
       const chatLog = document.getElementById("chatLog");
       const errorBox = document.getElementById("error");
       const clearButton = document.getElementById("clearButton");
+      const serverStatus = document.getElementById("serverStatus");
+      //个人信息
       const profile = {
         campus: document.getElementById("campus").value.trim() || null,
         college: document.getElementById("college").value.trim() || null,
@@ -178,7 +195,7 @@
         dorm_area: document.getElementById("dormArea").value.trim() || null,
         international_student: false,
       };
-
+      //输出回答
       function appendMessage(role, content, sources = [], usedLlm = null) {
         const message = document.createElement("div");
         message.className = "message " + role;
@@ -242,7 +259,7 @@
         chatLog.appendChild(message);
         message.scrollIntoView({ behavior: "smooth", block: "end" });
       }
-
+      //发送操作
       async function sendMessage() {
         const message = messageInput.value.trim();
 
@@ -302,7 +319,28 @@
           messageInput.focus();
         }
       }
+      //检查后端连接
+      async function checkServerStatus() {
+        try {
+          const response = await fetch("http://127.0.0.1:8000/health");
 
+          if (!response.ok) {
+            throw new Error("后端返回错误：" + response.status);
+          }
+
+          const data = await response.json();
+
+          serverStatus.textContent = `后端已连接：${data.status}`;
+          serverStatus.className = "server-status ok";
+          sendButton.disabled = false;
+        } catch (error) {
+          serverStatus.textContent =
+            "后端未连接，请先启动 uvicorn app.main:app --reload";
+          serverStatus.className = "server-status error";
+          sendButton.disabled = true;
+        }
+      }
+      //每次刷新保留历史回答
       chatHistory.forEach((message) => {
         appendMessage(message.role, message.content);
       });
@@ -315,13 +353,15 @@
         chatLog.innerHTML = "";
         errorBox.textContent = "";
       });
-
+      //按键回车直接发送
       messageInput.addEventListener("keydown", (event) => {
         if (event.key === "Enter" && !event.shiftKey) {
           event.preventDefault();
           sendMessage();
         }
       });
+      //检查服务器状态
+      checkServerStatus();
     </script>
   </body>
 </html>
