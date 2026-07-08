@@ -190,6 +190,40 @@
         color: #b36b00;
         font-size: 14px;
       }
+
+      .map-section {
+        margin-top: 24px;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 16px;
+      }
+
+      .map-header {
+        font-weight: bold;
+        margin-bottom: 12px;
+      }
+
+      .campus-map {
+        width: 100%;
+        height: 420px;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      .card-map-button {
+        margin-top: 8px;
+        padding: 8px 12px;
+        border: none;
+        border-radius: 6px;
+        background: #1677ff;
+        color: white;
+        cursor: pointer;
+      }
+
+      .card-map-button:hover {
+        background: #0958d9;
+      }
     </style>
   </head>
   <body>
@@ -214,15 +248,137 @@
 
         <div id="error" class="error"></div>
         <div id="chatLog" class="chat-log"></div>
+
+        <section id="mapSection" class="map-section" hidden>
+          <div class="map-header">校园路线地图</div>
+          <div id="campusMap" class="campus-map"></div>
+        </section>
       </div>
     </main>
 
+    <script src="./config.js"></script>
     <script>
       const STORAGE_KEY = "sjtu_freshman_chat_history";
       let chatHistory = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
 
       function saveHistory() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(chatHistory));
+      }
+
+      let amapReadyPromise = null;
+      let campusMap = null;
+
+      function loadAmapScript() {
+        if (window.AMap) {
+          return Promise.resolve(window.AMap);
+        }
+
+        if (amapReadyPromise) {
+          return amapReadyPromise;
+        }
+
+        const config = window.APP_CONFIG || {};
+
+        if (!config.AMAP_JS_KEY) {
+          return Promise.reject(
+            new Error("缺少 AMAP_JS_KEY，请检查 frontend/config.js"),
+          );
+        }
+
+        window._AMapSecurityConfig = {
+          securityJsCode: config.AMAP_SECURITY_CODE,
+        };
+
+        amapReadyPromise = new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(config.AMAP_JS_KEY)}`;
+          script.onload = () => resolve(window.AMap);
+          script.onerror = () => reject(new Error("高德地图 JS API 加载失败"));
+          document.head.appendChild(script);
+        });
+
+        return amapReadyPromise;
+      }
+
+      function parsePolyline(polyline) {
+        if (!polyline) {
+          return [];
+        }
+
+        return polyline
+          .split(";")
+          .map((point) => {
+            const [lng, lat] = point.split(",").map(Number);
+            return [lng, lat];
+          })
+          .filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat));
+      }
+
+      function extractRoutePath(route) {
+        if (!route || !route.steps) {
+          return [];
+        }
+
+        const path = [];
+
+        route.steps.forEach((step) => {
+          const stepPath = parsePolyline(step.polyline);
+          stepPath.forEach((point) => path.push(point));
+        });
+
+        return path;
+      }
+
+      async function showRouteOnMap(routeCardData) {
+        const AMap = await loadAmapScript();
+
+        const mapSection = document.getElementById("mapSection");
+        mapSection.hidden = false;
+
+        const route = routeCardData.route;
+        const path = extractRoutePath(route);
+
+        if (path.length === 0) {
+          errorBox.textContent = "路线数据中没有可绘制的 polyline。";
+          return;
+        }
+
+        if (!campusMap) {
+          campusMap = new AMap.Map("campusMap", {
+            zoom: 17,
+            resizeEnable: true,
+            center: path[0],
+          });
+        }
+
+        campusMap.clearMap();
+
+        const startMarker = new AMap.Marker({
+          position: path[0],
+          title: "起点",
+          label: {
+            content: "起点",
+            direction: "top",
+          },
+        });
+
+        const endMarker = new AMap.Marker({
+          position: path[path.length - 1],
+          title: "终点",
+          label: {
+            content: "终点",
+            direction: "top",
+          },
+        });
+
+        const polyline = new AMap.Polyline({
+          path: path,
+          showDir: true,
+          strokeWeight: 6,
+        });
+
+        campusMap.add([startMarker, endMarker, polyline]);
+        campusMap.setFitView([startMarker, endMarker, polyline]);
       }
 
       const messageInput = document.getElementById("message");
@@ -246,10 +402,16 @@
           return;
         }
 
+        const hasRouteCard = cards.some((card) => card.type === "route");
+
         const cardsBox = document.createElement("div");
         cardsBox.className = "cards";
 
         cards.forEach((card) => {
+          if (hasRouteCard && card.type === "place") {
+            return;
+          }
+
           if (card.type === "place") {
             const place = card.data.place;
             const mapUrl = card.data.map_url;
@@ -318,11 +480,24 @@
               distance.textContent = `步行距离约 ${route.distance} 米，预计耗时约 ${durationMinutes} 分钟。`;
               item.appendChild(distance);
 
+              const mapButton = document.createElement("button");
+              mapButton.type = "button";
+              mapButton.className = "card-map-button";
+              mapButton.textContent = "在地图上显示路线";
+
+              mapButton.addEventListener("click", () => {
+                showRouteOnMap(data);
+              });
+
+              item.appendChild(mapButton);
+
               if (route.steps && route.steps.length > 0) {
-                const stepsTitle = document.createElement("div");
-                stepsTitle.className = "card-title";
-                stepsTitle.textContent = "路线步骤";
-                item.appendChild(stepsTitle);
+                const details = document.createElement("details");
+                details.className = "route-details";
+
+                const summary = document.createElement("summary");
+                summary.textContent = "查看文字路线步骤";
+                details.appendChild(summary);
 
                 const stepsList = document.createElement("ol");
 
@@ -332,7 +507,8 @@
                   stepsList.appendChild(li);
                 });
 
-                item.appendChild(stepsList);
+                details.appendChild(stepsList);
+                item.appendChild(details);
               }
             } else {
               const description = document.createElement("div");
@@ -454,6 +630,7 @@
           }
 
           const data = await response.json();
+          console.log("chat response:", data);
           appendMessage(
             "assistant",
             data.answer,
