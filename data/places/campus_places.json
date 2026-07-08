@@ -1,0 +1,35 @@
+[
+  {
+    "id": "dorm_east_1",
+    "name": "东1宿舍",
+    "aliases": ["东一", "东1", "东一宿舍", "东区1号楼"],
+    "campus": "闵行校区",
+    "category": "宿舍",
+    "lng": null,
+    "lat": null,
+    "description": "闵行校区东区学生宿舍之一。坐标待补充。",
+    "tags": ["东区", "住宿", "新生"]
+  },
+  {
+    "id": "siyuan_gate",
+    "name": "思源门",
+    "aliases": ["交大思源门", "思源门入口"],
+    "campus": "闵行校区",
+    "category": "校门",
+    "lng": null,
+    "lat": null,
+    "description": "闵行校区常用校门之一。坐标待补充。",
+    "tags": ["校门", "入口", "导航"]
+  },
+  {
+    "id": "seiee_building",
+    "name": "电院楼群",
+    "aliases": ["电院", "电子信息与电气工程学院", "SEIEE"],
+    "campus": "闵行校区",
+    "category": "学院楼",
+    "lng": null,
+    "lat": null,
+    "description": "电子信息与电气工程学院相关楼群。坐标待补充。",
+    "tags": ["学院", "上课", "电院"]
+  }
+]

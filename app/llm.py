@@ -19,7 +19,7 @@ def generate_fallback_answer(question: str, contexts: list[dict]) -> str:
 
 def build_prompt(question: str, contexts: list[dict], history: list = None, profile = None,tool_results: list[dict] = None) -> str:
     history = history or []
-
+    tool_results = tool_results or []
     if profile:
         profile_text = profile.model_dump_json(exclude_none=True)
     else:
@@ -31,8 +31,13 @@ def build_prompt(question: str, contexts: list[dict], history: list = None, prof
     )
 
     context_text = "\n\n".join(
-        f"资料 {index}：{item['title']}\n来源：{item['source']}\n内容：{item['content']}"
+        f"资料 {index}:{item['title']}\n来源:{item['source']}\n内容:{item['content']}"
         for index, item in enumerate(contexts, start=1)
+    )
+
+    tool_text = "\n\n".join(
+    f"工具:{item['name']}\n结果:{item['content']}"
+    for item in tool_results
     )
 
     return f"""
@@ -49,6 +54,9 @@ def build_prompt(question: str, contexts: list[dict], history: list = None, prof
 
 参考资料：
 {context_text or "没有检索到相关资料"}
+
+工具结果：
+{tool_text or "无"}
 """
 
 

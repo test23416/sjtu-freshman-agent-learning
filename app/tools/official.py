@@ -18,7 +18,7 @@ def get_school_calendar() -> str:
     return "这里以后接入校历。目前请以学校官方校历为准。"
 
 
-def run_tools(question: str) -> list[dict]:
+def run_official_tools(question: str) -> list[dict]:
     tool_names = detect_tools(question)
     results = []
 

@@ -1,0 +1,18 @@
+from app.tools.official import run_official_tools
+from app.tools.place_tools import run_place_tools
+
+
+def run_tools(question: str) -> dict:
+    tool_results = []
+    cards = []
+
+    tool_results.extend(run_official_tools(question))
+
+    place_output = run_place_tools(question)
+    tool_results.extend(place_output.get("tool_results", []))
+    cards.extend(place_output.get("cards", []))
+
+    return {
+        "tool_results": tool_results,
+        "cards": cards,
+    }

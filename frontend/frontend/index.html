@@ -146,6 +146,50 @@
       .server-status.error {
         color: #c00;
       }
+      .cards {
+        margin-top: 12px;
+      }
+
+      .card-item {
+        margin-top: 10px;
+        padding: 12px;
+        border: 1px solid #d8e3f0;
+        background: #f7fbff;
+        border-radius: 8px;
+      }
+
+      .card-title {
+        font-weight: bold;
+        margin-bottom: 6px;
+      }
+
+      .card-meta {
+        color: #666;
+        font-size: 14px;
+        margin-bottom: 6px;
+      }
+
+      .card-description {
+        line-height: 1.6;
+        margin-bottom: 8px;
+      }
+
+      .card-link {
+        display: inline-block;
+        margin-top: 6px;
+        color: #1677ff;
+        text-decoration: none;
+      }
+
+      .card-link:hover {
+        text-decoration: underline;
+      }
+
+      .card-warning {
+        margin-top: 6px;
+        color: #b36b00;
+        font-size: 14px;
+      }
     </style>
   </head>
   <body>
@@ -195,8 +239,110 @@
         dorm_area: document.getElementById("dormArea").value.trim() || null,
         international_student: false,
       };
+
+      //导航卡片
+      function renderCards(cards, container) {
+        if (!cards || cards.length === 0) {
+          return;
+        }
+
+        const cardsBox = document.createElement("div");
+        cardsBox.className = "cards";
+
+        cards.forEach((card) => {
+          if (card.type === "place") {
+            const place = card.data.place;
+            const mapUrl = card.data.map_url;
+
+            const item = document.createElement("div");
+            item.className = "card-item";
+
+            const title = document.createElement("div");
+            title.className = "card-title";
+            title.textContent = card.title || place.name;
+
+            const meta = document.createElement("div");
+            meta.className = "card-meta";
+            meta.textContent = `${place.campus || "未知校区"} | ${place.category || "地点"}`;
+
+            const description = document.createElement("div");
+            description.className = "card-description";
+            description.textContent = place.description || "暂无地点说明。";
+
+            item.appendChild(title);
+            item.appendChild(meta);
+            item.appendChild(description);
+
+            if (mapUrl) {
+              const link = document.createElement("a");
+              link.className = "card-link";
+              link.href = mapUrl;
+              link.target = "_blank";
+              link.rel = "noopener noreferrer";
+              link.textContent = "打开地图";
+              item.appendChild(link);
+            } else {
+              const noMap = document.createElement("div");
+              noMap.className = "card-warning";
+              noMap.textContent = "暂未配置精确坐标，无法生成地图链接。";
+              item.appendChild(noMap);
+            }
+
+            cardsBox.appendChild(item);
+          }
+
+          if (card.type === "route") {
+            const item = document.createElement("div");
+            item.className = "card-item";
+
+            const title = document.createElement("div");
+            title.className = "card-title";
+            title.textContent = card.title || "路线导航";
+
+            const mapUrl = card.data.map_url;
+
+            const description = document.createElement("div");
+            description.className = "card-description";
+
+            if (card.data.missing_origin) {
+              description.textContent =
+                "已识别目的地，但还需要知道你的出发点，才能生成更准确的路线。";
+            } else {
+              description.textContent = "已识别起点和终点。";
+            }
+
+            item.appendChild(title);
+            item.appendChild(description);
+
+            if (mapUrl) {
+              const link = document.createElement("a");
+              link.className = "card-link";
+              link.href = mapUrl;
+              link.target = "_blank";
+              link.rel = "noopener noreferrer";
+              link.textContent = "打开步行导航";
+              item.appendChild(link);
+            } else {
+              const noMap = document.createElement("div");
+              noMap.className = "card-warning";
+              noMap.textContent = "路线暂不可用，可能是地点坐标尚未配置。";
+              item.appendChild(noMap);
+            }
+
+            cardsBox.appendChild(item);
+          }
+        });
+
+        container.appendChild(cardsBox);
+      }
       //输出回答
-      function appendMessage(role, content, sources = [], usedLlm = null) {
+      function appendMessage(
+        role,
+        content,
+        sources = [],
+        usedLlm = null,
+        cards = [],
+      ) {
         const message = document.createElement("div");
         message.className = "message " + role;
 
@@ -217,6 +363,8 @@
             ? "已使用大模型生成回答"
             : "使用本地知识库回答";
           message.appendChild(meta);
+
+          renderCards(cards, message);
 
           const sourcesBox = document.createElement("div");
           sourcesBox.className = "sources";
@@ -298,6 +446,7 @@
             data.answer,
             data.sources || [],
             data.used_llm,
+            data.cards || [],
           );
 
           chatHistory.push({
@@ -347,6 +496,7 @@
 
       sendButton.addEventListener("click", sendMessage);
 
+      //清空按钮
       clearButton.addEventListener("click", () => {
         chatHistory = [];
         localStorage.removeItem(STORAGE_KEY);
