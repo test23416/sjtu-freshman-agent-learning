@@ -2,7 +2,7 @@ from app.knowledge_base import search_knowledge
 from app.llm import generate_answer
 from app.schemas import ChatRequest,ChatResponse
 from app.tools.official import run_official_tools
-from app.tools.place_tools import run_place_tools
+from app.tools.places import run_place_tools
 
 def chat_with_agent(request: ChatRequest) -> ChatResponse:
     results = search_knowledge(request.message)

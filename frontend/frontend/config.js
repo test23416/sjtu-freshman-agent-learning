@@ -1,0 +1,4 @@
+window.APP_CONFIG = {
+  AMAP_JS_KEY: "19c96f2d9b790da2cdffb5ae5c282255",
+  AMAP_SECURITY_CODE: "f284df51397efddd52f89920c421b6aa"
+};

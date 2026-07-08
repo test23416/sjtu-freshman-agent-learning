@@ -5,12 +5,45 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
+from app.tools.amap import get_walking_route, search_place_by_keyword
+
 
 PLACES_PATH = Path("data/places/campus_places.json")
 
 ROUTE_WORDS = ["怎么去", "怎么到", "路线", "导航", "走到", "到哪里", "去哪里"]
 PLACE_WORDS = ["在哪里", "在哪", "位置", "怎么去", "怎么到", "路线", "导航", "附近"]
 
+
+def resolve_place_coordinate(place: dict[str, Any]) -> dict[str, Any]:
+    """
+    优先使用本地坐标。
+    如果本地没有坐标，就用高德 POI 搜索临时解析坐标。
+    不直接写回 JSON，只在本次请求中使用。
+    """
+    if has_coordinate(place):
+        return place
+
+    keyword_parts = ["上海交通大学"]
+
+    if place.get("campus"):
+        keyword_parts.append(place["campus"])
+
+    keyword_parts.append(place["name"])
+
+    keyword = " ".join(keyword_parts)
+
+    poi = search_place_by_keyword(keyword)
+
+    if not poi:
+        return place
+
+    resolved = dict(place)
+    resolved["lng"] = poi["lng"]
+    resolved["lat"] = poi["lat"]
+    resolved["amap_poi"] = poi
+    resolved["coordinate_source"] = "amap"
+
+    return resolved
 
 def load_places() -> list[dict[str, Any]]:
     if not PLACES_PATH.exists():
@@ -153,41 +186,57 @@ def run_place_tools(question: str) -> dict[str, list[dict[str, Any]]]:
 
     if is_route_intent(question):
         if len(matched_places) >= 2:
-            origin = matched_places[0]
-            destination = matched_places[1]
+            origin = resolve_place_coordinate(matched_places[0])
+            destination = resolve_place_coordinate(matched_places[1])
         else:
             origin = None
-            destination = matched_places[0]
+            destination = resolve_place_coordinate(matched_places[0])
 
-        route_url = build_navigation_url(destination=destination, origin=origin)
+        route_data = None
 
-        cards.insert(
-            0,
-            {
-                "type": "route",
-                "title": (
-                    f"{origin['name']} 到 {destination['name']}"
-                    if origin
-                    else f"导航到 {destination['name']}"
-                ),
-                "data": {
-                    "from": clean_place(origin) if origin else None,
-                    "to": clean_place(destination),
-                    "mode": "walk",
-                    "map_url": route_url,
-                    "missing_origin": origin is None,
+        if origin and has_coordinate(origin) and has_coordinate(destination):
+            route_data = get_walking_route(
+                origin_lng=origin["lng"],
+                origin_lat=origin["lat"],
+                destination_lng=destination["lng"],
+                destination_lat=destination["lat"],
+            )
+
+            cards.insert(
+                0,
+                {
+                    "type": "route",
+                    "title": (
+                        f"{origin['name']} 到 {destination['name']}"
+                        if origin
+                        else f"导航到 {destination['name']}"
+                    ),
+                    "data": {
+                        "from": clean_place(origin) if origin else None,
+                        "to": clean_place(destination),
+                        "mode": "walk",
+                        "missing_origin": origin is None,
+                        "route": route_data,
+                        "route_provider": "amap" if route_data else None,
+                    },
                 },
-            },
-        )
+            )
 
         if origin is None:
             tool_lines.append(
                 f"用户有路线意图，但只识别到目的地：{destination['name']}。"
                 "如果需要精确路线，可以追问用户从哪里出发。"
             )
+        elif route_data:
+            tool_lines.append(
+                f"高德步行路线规划结果：从 {origin['name']} 到 {destination['name']}，"
+                f"距离约 {route_data.get('distance')} 米，"
+                f"耗时约 {route_data.get('duration')} 秒。"
+            )
         else:
             tool_lines.append(
-                f"用户有路线意图，识别到起点：{origin['name']}，终点：{destination['name']}。"
+                f"用户有路线意图，识别到起点：{origin['name']}，终点：{destination['name']}，"
+                "但暂时未能获取高德步行路线。"
             )
 
     return {

@@ -21,3 +21,7 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY","")
 OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "deepseek-chat")
+
+
+AMAP_WEB_SERVICE_KEY = os.getenv("AMAP_WEB_SERVICE_KEY", "")
+
