@@ -15,38 +15,7 @@ def amap_available() -> bool:
     return bool(AMAP_WEB_SERVICE_KEY)
 
 
-def search_place_by_keyword(keyword: str, city: str = "上海") -> dict[str, Any] | None:
-    """
-    用高德 POI 关键字搜索地点，返回最匹配的一个 POI。
-    """
-    if not amap_available():
-        return None
-
-    params = {
-        "key": AMAP_WEB_SERVICE_KEY,
-        "keywords": keyword,
-        "region": city,
-        "city_limit": "true",
-        "page_size": 5,
-    }
-
-    try:
-        response = httpx.get(AMAP_PLACE_TEXT_URL, params=params, timeout=8)
-        response.raise_for_status()
-        data = response.json()
-    except Exception as error:
-        print("高德地点搜索失败:", repr(error))
-        return None
-
-    if data.get("status") != "1":
-        print("高德地点搜索返回异常:", data)
-        return None
-
-    pois = data.get("pois") or []
-    if not pois:
-        return None
-
-    poi = pois[0]
+def normalize_poi(poi: dict[str, Any]) -> dict[str, Any] | None:
     location = poi.get("location", "")
 
     if "," not in location:
@@ -64,6 +33,60 @@ def search_place_by_keyword(keyword: str, city: str = "上海") -> dict[str, Any
         "type": poi.get("type"),
         "id": poi.get("id"),
     }
+
+
+def search_places_by_keyword(
+    keyword: str,
+    city: str = "上海",
+    page_size: int = 10,
+) -> list[dict[str, Any]]:
+    """
+    用高德 POI 关键字搜索地点，返回候选 POI 列表。
+    """
+    if not amap_available():
+        return []
+
+    params = {
+        "key": AMAP_WEB_SERVICE_KEY,
+        "keywords": keyword,
+        "region": city,
+        "city_limit": "true",
+        "page_size": page_size,
+    }
+
+    try:
+        response = httpx.get(AMAP_PLACE_TEXT_URL, params=params, timeout=8)
+        response.raise_for_status()
+        data = response.json()
+    except Exception as error:
+        print("高德地点搜索失败:", repr(error))
+        return []
+
+    if data.get("status") != "1":
+        print("高德地点搜索返回异常:", data)
+        return []
+
+    pois = data.get("pois") or []
+    candidates = []
+
+    for poi in pois:
+        normalized = normalize_poi(poi)
+        if normalized:
+            candidates.append(normalized)
+
+    return candidates
+
+
+def search_place_by_keyword(keyword: str, city: str = "上海") -> dict[str, Any] | None:
+    """
+    用高德 POI 关键字搜索地点，返回最匹配的一个 POI。
+    """
+    candidates = search_places_by_keyword(keyword, city=city, page_size=5)
+
+    if not candidates:
+        return None
+
+    return candidates[0]
 
 
 def get_walking_route(

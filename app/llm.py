@@ -1,4 +1,5 @@
 import httpx
+import json
 
 from app.config import OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL
 
@@ -114,3 +115,115 @@ def generate_answer(question: str, contexts: list[dict], history: list = None, p
             "请检查 OPENAI_BASE_URL、OPENAI_MODEL、API Key 或网络连接。",
             False,
         )
+
+
+def extract_json_object(text: str) -> dict | None:
+    text = text.strip()
+
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text.startswith("json"):
+            text = text[4:].strip()
+
+    start = text.find("{")
+    end = text.rfind("}")
+
+    if start == -1 or end == -1 or end < start:
+        return None
+
+    try:
+        return json.loads(text[start : end + 1])
+    except json.JSONDecodeError:
+        return None
+
+
+def plan_tool_use(question: str, history: list = None, profile = None) -> dict | None:
+    if not OPENAI_API_KEY:
+        return None
+
+    history = history or []
+    history_text = "\n".join(
+        f"{item.role}:{item.content}"
+        for item in history[-8:]
+    )
+    profile_text = profile.model_dump_json(exclude_none=True) if profile else "无"
+
+    prompt = f"""
+你是上海交通大学新生助手的工具规划器。你的任务不是回答用户，而是判断是否需要调用地图工具。
+
+可用工具：
+1. campus_place_tool.place_search(place)
+   用于查询地点、位置、地图链接。
+2. campus_place_tool.walking_route(origin, destination)
+   用于步行导航、路线规划。origin 可以为 null；当用户没说起点时，系统会默认使用当前位置或上下文补全。
+
+请只输出一个 JSON 对象，不要输出解释文字：
+{{
+  "tool": "campus_place_tool" 或 null,
+  "action": "place_search" 或 "walking_route" 或 "none",
+  "place": "地点名或 null",
+  "normalized_place": "规范化地点名或 null",
+  "origin": "起点地点名或 null",
+  "normalized_origin": "规范化起点或 null",
+  "destination": "终点地点名或 null",
+  "normalized_destination": "规范化终点或 null",
+  "campus": "校区名或 null",
+  "reason": "一句话说明"
+}}
+
+判断规则：
+- “包图怎么走”“怎么去包图”“去图书馆”“从宿舍到电院”都应使用 walking_route。
+- “包图在哪”“电院位置”“附近的校门”应使用 place_search。
+- 地点可以是简称、别名、口语说法；不要因为本地地点库可能没有就放弃工具。
+- 尽量把简称改写为上海交通大学常见规范名称，例如“包图”应规范化为“包玉刚图书馆”。
+- 如果用户没说校区但语境是上海交通大学本科新生，优先按“闵行校区”理解。
+- 如果不是地点或导航问题，action 用 "none"，tool 用 null。
+
+历史对话：
+{history_text or "无"}
+
+用户资料：
+{profile_text}
+
+最新用户问题：
+{question}
+"""
+
+    try:
+        response = httpx.post(
+            f"{OPENAI_BASE_URL.rstrip('/')}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENAI_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": OPENAI_MODEL,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    }
+                ],
+                "temperature": 0,
+            },
+            timeout=20,
+        )
+        response.raise_for_status()
+        data = response.json()
+        content = data["choices"][0]["message"]["content"]
+    except Exception as error:
+        print("工具规划调用大模型失败:", repr(error))
+        return None
+
+    plan = extract_json_object(content)
+
+    if not isinstance(plan, dict):
+        return None
+
+    if plan.get("tool") != "campus_place_tool":
+        return None
+
+    if plan.get("action") not in {"place_search", "walking_route"}:
+        return None
+
+    return plan

@@ -8,6 +8,11 @@ class StudentProfile(BaseModel):
     dorm_area:str | None = None
     international_student:bool | None = None
 
+class UserLocation(BaseModel):
+    lng: float
+    lat: float
+    accuracy: float | None = None
+
 class KnowledgeContext(BaseModel):
     title:str
     source:str
@@ -28,6 +33,7 @@ class ChatRequest(BaseModel):
     message: str
     history:list[ChatMessage] = Field(default_factory=list)
     profile:StudentProfile | None = None
+    location:UserLocation | None = None
 
 class ChatResponse(BaseModel):
     answer: str
