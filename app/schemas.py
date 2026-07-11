@@ -13,6 +13,12 @@ class UserLocation(BaseModel):
     lat: float
     accuracy: float | None = None
 
+class DiningPreference(BaseModel):
+    canteen_id: str | None = None
+    canteen_name: str
+    count: int = 1
+    last_visited_at: str | None = None
+
 class KnowledgeContext(BaseModel):
     title:str
     source:str
@@ -34,6 +40,7 @@ class ChatRequest(BaseModel):
     history:list[ChatMessage] = Field(default_factory=list)
     profile:StudentProfile | None = None
     location:UserLocation | None = None
+    dining_preferences:list[DiningPreference] = Field(default_factory=list)
 
 class ChatResponse(BaseModel):
     answer: str

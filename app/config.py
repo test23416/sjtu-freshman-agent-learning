@@ -24,4 +24,5 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "deepseek-chat")
 
 
 AMAP_WEB_SERVICE_KEY = os.getenv("AMAP_WEB_SERVICE_KEY", "")
+CAMPUSLIFE_DINING_URL = os.getenv("CAMPUSLIFE_DINING_URL", "")
 

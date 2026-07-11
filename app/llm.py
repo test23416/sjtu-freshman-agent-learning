@@ -46,6 +46,8 @@ def build_prompt(question: str, contexts: list[dict], history: list = None, prof
 请基于下面的资料回答用户问题。
 如果资料不足，请明确说明需要以学校或学院最新官方通知为准。
 不要编造日期、地点、政策细节。
+如果工具结果里有 dining_tool 的食堂推荐，即使实时拥挤度或历史偏好暂未获取，也要基于工具给出的本地食堂知识库推荐明确回答；不要只说“无法推荐”。
+回答食堂问题时，区分依据来源：有实时拥挤度就说明实时依据；没有实时拥挤度时说明“先按本地食堂知识库和已记录偏好推荐”。
 
 历史对话：
 {history_text or "无"}
@@ -149,18 +151,22 @@ def plan_tool_use(question: str, history: list = None, profile = None) -> dict |
     profile_text = profile.model_dump_json(exclude_none=True) if profile else "无"
 
     prompt = f"""
-你是上海交通大学新生助手的工具规划器。你的任务不是回答用户，而是判断是否需要调用地图工具。
+你是上海交通大学新生助手的工具规划器。你的任务不是回答用户，而是判断是否需要调用校园工具。
 
 可用工具：
 1. campus_place_tool.place_search(place)
    用于查询地点、位置、地图链接。
 2. campus_place_tool.walking_route(origin, destination)
    用于步行导航、路线规划。origin 可以为 null；当用户没说起点时，系统会默认使用当前位置或上下文补全。
+3. dining_tool.dining_recommend(campus, canteen)
+   用于食堂推荐、实时拥挤度、去哪吃饭。canteen 可以为 null。
+4. dining_tool.dining_record(canteen)
+   用于记录用户已经去某个食堂吃了，作为历史偏好。
 
 请只输出一个 JSON 对象，不要输出解释文字：
 {{
-  "tool": "campus_place_tool" 或 null,
-  "action": "place_search" 或 "walking_route" 或 "none",
+  "tool": "campus_place_tool" 或 "dining_tool" 或 null,
+  "action": "place_search" 或 "walking_route" 或 "dining_recommend" 或 "dining_record" 或 "none",
   "place": "地点名或 null",
   "normalized_place": "规范化地点名或 null",
   "origin": "起点地点名或 null",
@@ -177,6 +183,8 @@ def plan_tool_use(question: str, history: list = None, profile = None) -> dict |
 - 地点可以是简称、别名、口语说法；不要因为本地地点库可能没有就放弃工具。
 - 尽量把简称改写为上海交通大学常见规范名称，例如“包图”应规范化为“包玉刚图书馆”。
 - 如果用户没说校区但语境是上海交通大学本科新生，优先按“闵行校区”理解。
+- “去哪吃”“推荐食堂”“哪个食堂不挤”“三餐人多吗”应使用 dining_recommend。
+- “我去三餐吃了”“今天吃了哈乐”“我常去二餐”应使用 dining_record。
 - 如果不是地点或导航问题，action 用 "none"，tool 用 null。
 
 历史对话：
@@ -220,10 +228,15 @@ def plan_tool_use(question: str, history: list = None, profile = None) -> dict |
     if not isinstance(plan, dict):
         return None
 
-    if plan.get("tool") != "campus_place_tool":
+    if plan.get("tool") not in {"campus_place_tool", "dining_tool"}:
         return None
 
-    if plan.get("action") not in {"place_search", "walking_route"}:
+    if plan.get("action") not in {
+        "place_search",
+        "walking_route",
+        "dining_recommend",
+        "dining_record",
+    }:
         return None
 
     return plan

@@ -6,33 +6,85 @@
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <main>
-      <h1>交大新生助手</h1>
+    <main class="app-shell">
+      <section class="topbar">
+        <div>
+          <p class="eyebrow">SJTU Freshman Agent</p>
+          <h1>交大新生助手</h1>
+        </div>
+        <div id="serverStatus" class="server-status">正在检查后端连接...</div>
+      </section>
 
-      <div id="serverStatus" class="server-status">正在检查后端连接...</div>
+      <section class="workspace">
+        <aside class="profile-panel" aria-label="个人信息">
+          <div class="panel-header">
+            <h2>个人信息</h2>
+            <p>用于路线、食堂和入学事项的个性化推荐。</p>
+          </div>
 
-      <div class="card">
-        <textarea
-          id="message"
-          placeholder="例如：新生入学前要准备什么？"
-        ></textarea>
-        <br />
+          <label>
+            <span>校区</span>
+            <input id="campus" placeholder="闵行校区" />
+          </label>
+          <label>
+            <span>学院</span>
+            <input id="college" placeholder="电子信息与电气工程学院" />
+          </label>
+          <label>
+            <span>专业</span>
+            <input id="major" placeholder="计算机科学与技术" />
+          </label>
+          <label>
+            <span>宿舍区域</span>
+            <input id="dormArea" placeholder="东区" />
+          </label>
 
-        <input id="campus" placeholder="校区，例如：闵行校区" />
-        <input id="college" placeholder="学院，例如：电子信息与电气工程学院" />
-        <input id="major" placeholder="专业，例如：计算机科学与技术" />
-        <input id="dormArea" placeholder="宿舍区域，例如：东区" />
-        <button id="sendButton">发送</button>
-        <button id="clearButton" type="button">清空对话</button>
+          <div class="quick-prompts" aria-label="快捷问题">
+            <button type="button" class="prompt-chip" data-prompt="包图怎么走">
+              包图怎么走
+            </button>
+            <button
+              type="button"
+              class="prompt-chip"
+              data-prompt="推荐一个现在不太挤的食堂"
+            >
+              推荐食堂
+            </button>
+            <button
+              type="button"
+              class="prompt-chip"
+              data-prompt="新生入学前要准备什么？"
+            >
+              入学准备
+            </button>
+          </div>
+        </aside>
 
-        <div id="error" class="error"></div>
-        <div id="chatLog" class="chat-log"></div>
+        <section class="chat-panel" aria-label="聊天">
+          <div id="chatLog" class="chat-log"></div>
 
-        <section id="mapSection" class="map-section" hidden>
-          <div class="map-header">校园路线地图</div>
-          <div id="campusMap" class="campus-map"></div>
+          <section id="mapSection" class="map-section" hidden>
+            <div class="map-header">校园路线地图</div>
+            <div id="campusMap" class="campus-map"></div>
+          </section>
+
+          <div class="composer">
+            <textarea
+              id="message"
+              placeholder="问问入学准备、校园路线、食堂推荐、政策材料..."
+            ></textarea>
+            <div class="composer-actions">
+              <div id="error" class="error"></div>
+              <div class="button-row">
+                <button id="clearButton" type="button" class="secondary-button">
+                  清空对话
+                </button>
+                <button id="sendButton" class="primary-button">发送</button>
+              </div>
+            </div>
+          </div>
         </section>
-      </div>
+      </section>
     </main>
 
     <script src="./config.js"></script>

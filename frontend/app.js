@@ -1,4 +1,8 @@
 const STORAGE_KEY = "sjtu_freshman_chat_history";
+const DINING_PREFERENCES_KEY = "sjtu_freshman_dining_preferences";
+const LOCATION_STORAGE_KEY = "sjtu_freshman_last_location";
+const config = window.APP_CONFIG || {};
+const API_BASE_URL = (config.API_BASE_URL || window.location.origin || "").replace(/\/$/, "");
 const ROUTE_WORDS = [
   "怎么去",
   "怎么到",
@@ -13,22 +17,115 @@ const ROUTE_WORDS = [
   "从",
 ];
 let chatHistory = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+let diningPreferences = JSON.parse(
+  localStorage.getItem(DINING_PREFERENCES_KEY) || "[]",
+);
 
 function saveHistory() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(chatHistory));
 }
 
+function saveDiningPreferences() {
+  localStorage.setItem(
+    DINING_PREFERENCES_KEY,
+    JSON.stringify(diningPreferences),
+  );
+}
+
+function recordDiningPreference(canteen) {
+  const existing = diningPreferences.find(
+    (item) =>
+      (canteen.id && item.canteen_id === canteen.id) ||
+      item.canteen_name === canteen.name,
+  );
+
+  if (existing) {
+    existing.count = Number(existing.count || 0) + 1;
+    existing.last_visited_at = new Date().toISOString();
+  } else {
+    diningPreferences.push({
+      canteen_id: canteen.id || null,
+      canteen_name: canteen.name,
+      count: 1,
+      last_visited_at: new Date().toISOString(),
+    });
+  }
+
+  saveDiningPreferences();
+}
+
 let amapReadyPromise = null;
 let campusMap = null;
 let currentLocationPromise = null;
+let lastLocationError = "";
 
 function isRouteQuestion(message) {
   return ROUTE_WORDS.some((word) => message.includes(word));
 }
 
+function getCachedLocation() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(LOCATION_STORAGE_KEY) || "null");
+
+    if (!cached || typeof cached.lng !== "number" || typeof cached.lat !== "number") {
+      return null;
+    }
+
+    return {
+      lng: cached.lng,
+      lat: cached.lat,
+      accuracy: cached.accuracy || null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveCachedLocation(location) {
+  localStorage.setItem(
+    LOCATION_STORAGE_KEY,
+    JSON.stringify({
+      ...location,
+      saved_at: new Date().toISOString(),
+    }),
+  );
+}
+
+function describeLocationError(error) {
+  if (!window.isSecureContext) {
+    return "浏览器只允许在 localhost/127.0.0.1 或 HTTPS 页面获取定位，请用 http://127.0.0.1:8000/ 打开。";
+  }
+
+  if (!error) {
+    return "浏览器暂时没有返回定位结果。";
+  }
+
+  if (error.code === error.PERMISSION_DENIED) {
+    return "浏览器定位权限被拒绝，请在地址栏左侧的网站权限里允许定位后刷新页面。";
+  }
+
+  if (error.code === error.POSITION_UNAVAILABLE) {
+    return "浏览器暂时无法确定当前位置，请确认系统定位服务已开启。";
+  }
+
+  if (error.code === error.TIMEOUT) {
+    return "浏览器定位超时，已尝试使用最近一次成功定位。";
+  }
+
+  return "浏览器定位失败，已尝试使用最近一次成功定位。";
+}
+
 function getCurrentLocation() {
+  lastLocationError = "";
+
+  if (!window.isSecureContext) {
+    lastLocationError = describeLocationError();
+    return Promise.resolve(getCachedLocation());
+  }
+
   if (!navigator.geolocation) {
-    return Promise.resolve(null);
+    lastLocationError = "当前浏览器不支持定位。";
+    return Promise.resolve(getCachedLocation());
   }
 
   if (currentLocationPromise) {
@@ -38,17 +135,22 @@ function getCurrentLocation() {
   currentLocationPromise = new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        resolve({
+        const location = {
           lng: position.coords.longitude,
           lat: position.coords.latitude,
           accuracy: position.coords.accuracy,
-        });
+        };
+        saveCachedLocation(location);
+        resolve(location);
       },
-      () => resolve(null),
+      (error) => {
+        lastLocationError = describeLocationError(error);
+        resolve(getCachedLocation());
+      },
       {
         enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 60000,
+        timeout: 12000,
+        maximumAge: 300000,
       },
     );
   }).finally(() => {
@@ -66,8 +168,6 @@ function loadAmapScript() {
   if (amapReadyPromise) {
     return amapReadyPromise;
   }
-
-  const config = window.APP_CONFIG || {};
 
   if (!config.AMAP_JS_KEY) {
     return Promise.reject(
@@ -334,6 +434,97 @@ function renderCards(cards, container) {
 
       cardsBox.appendChild(item);
     }
+
+    if (card.type === "dining") {
+      const data = card.data || {};
+      const recommendations = data.recommendations || [];
+
+      const item = document.createElement("div");
+      item.className = "card-item";
+
+      const title = document.createElement("div");
+      title.className = "card-title";
+      title.textContent = card.title || "食堂推荐";
+      item.appendChild(title);
+
+      recommendations.forEach((recommendation, index) => {
+        const canteen = recommendation.canteen;
+        const crowd = recommendation.crowd;
+
+        const row = document.createElement("div");
+        row.className = "source";
+
+        const rowTitle = document.createElement("div");
+        rowTitle.className = "source-title";
+        rowTitle.textContent = `${index + 1}. ${canteen.name}`;
+
+        const meta = document.createElement("div");
+        meta.className = "source-meta";
+        meta.textContent = `${canteen.campus} | ${canteen.location_desc || canteen.area || "校内"} | 拥挤度：${
+          crowd ? crowd.crowd_text : "暂未获取"
+        } | 偏好：${recommendation.preference_count || 0} 次`;
+
+        const description = document.createElement("div");
+        description.className = "card-description";
+        const floorCount = Array.isArray(canteen.floors)
+          ? canteen.floors.length
+          : 0;
+        description.textContent =
+          canteen.description ||
+          canteen.location_desc ||
+          (floorCount > 0 ? `共有 ${floorCount} 层餐饮区域。` : "");
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "card-map-button";
+        button.textContent = "我去这里吃了";
+        button.addEventListener("click", () => {
+          recordDiningPreference(canteen);
+          button.disabled = true;
+          button.textContent = "已记录";
+        });
+
+        row.appendChild(rowTitle);
+        row.appendChild(meta);
+        row.appendChild(description);
+        row.appendChild(button);
+        item.appendChild(row);
+      });
+
+      if (recommendations.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "card-warning";
+        empty.textContent = "暂时没有可推荐的食堂。";
+        item.appendChild(empty);
+      }
+
+      cardsBox.appendChild(item);
+    }
+
+    if (card.type === "dining_preference_record") {
+      const canteen = card.data && card.data.canteen;
+
+      if (canteen) {
+        recordDiningPreference(canteen);
+      }
+
+      const item = document.createElement("div");
+      item.className = "card-item";
+
+      const title = document.createElement("div");
+      title.className = "card-title";
+      title.textContent = card.title || "已记录用餐偏好";
+
+      const description = document.createElement("div");
+      description.className = "card-description";
+      description.textContent = canteen
+        ? `已把 ${canteen.name} 记入你的历史用餐偏好。`
+        : "已记录你的历史用餐偏好。";
+
+      item.appendChild(title);
+      item.appendChild(description);
+      cardsBox.appendChild(item);
+    }
   });
 
   container.appendChild(cardsBox);
@@ -425,11 +616,16 @@ async function sendMessage() {
   errorBox.textContent = "";
 
   try {
-    const location = isRouteQuestion(message)
-      ? await getCurrentLocation()
-      : null;
+    const needsLocation = isRouteQuestion(message);
+    const location = needsLocation ? await getCurrentLocation() : null;
 
-    const response = await fetch("http://127.0.0.1:8000/api/chat", {
+    if (needsLocation && !location && lastLocationError) {
+      errorBox.textContent = lastLocationError;
+    } else if (needsLocation && location && lastLocationError) {
+      errorBox.textContent = `${lastLocationError} 已使用最近一次成功定位生成路线。`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -439,6 +635,7 @@ async function sendMessage() {
         history: chatHistory,
         profile: buildProfile(),
         location: location,
+        dining_preferences: diningPreferences,
       }),
     });
 
@@ -478,7 +675,7 @@ async function sendMessage() {
 //检查后端连接
 async function checkServerStatus() {
   try {
-    const response = await fetch("http://127.0.0.1:8000/health");
+    const response = await fetch(`${API_BASE_URL}/health`);
 
     if (!response.ok) {
       throw new Error("后端返回错误：" + response.status);
@@ -502,6 +699,13 @@ chatHistory.forEach((message) => {
 });
 
 sendButton.addEventListener("click", sendMessage);
+
+document.querySelectorAll(".prompt-chip").forEach((button) => {
+  button.addEventListener("click", () => {
+    messageInput.value = button.dataset.prompt || "";
+    messageInput.focus();
+  });
+});
 
 //清空按钮
 clearButton.addEventListener("click", () => {

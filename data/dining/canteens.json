@@ -1,0 +1,272 @@
+{
+  "source": "提取自 SJTU 新生指南食堂篇",
+  "updated": "2025",
+  "canteens": [
+    {
+      "id": 100,
+      "name": "第一餐饮大楼",
+      "campus": "闵行",
+      "location_desc": "学生公寓西一区北面，上中下院和包图东侧，是闵行校区历史最悠久的餐厅",
+      "floors": [
+        {
+          "floor": 1,
+          "meal_services": ["早餐", "午餐", "晚餐"],
+          "sub_areas": [
+            {"name": "淮扬快餐", "cuisine": "淮扬菜"},
+            {"name": "超霖美食", "cuisine": "综合"},
+            {"name": "五芳斋", "cuisine": "中式点心"},
+            {"name": "中式点心", "cuisine": "点心"},
+            {"name": "陕西面食", "cuisine": "面食", "is_popular": true},
+            {"name": "印度飞饼", "cuisine": "小吃", "is_popular": true},
+            {"name": "云南米线", "cuisine": "米线", "is_popular": true}
+          ]
+        },
+        {
+          "floor": 2,
+          "meal_services": ["午餐", "晚餐"],
+          "sub_areas": [
+            {"name": "自选餐厅", "cuisine": "川味/粉面", "recommended_dishes": ["碗杂小面", "酸辣粉", "南昌拌粉"]},
+            {"name": "教工餐厅", "cuisine": "教工餐", "notes": "周一至周五午餐仅服务教职工，晚餐对全校开放"}
+          ]
+        }
+      ],
+      "special_services": [
+        {"name": "民族风味餐厅", "location": "大楼北侧", "cuisine": "清真", "features": ["牛肉拉面", "羊肉抓饭", "羊肉串", "冬季小火锅"], "meal_services": ["早餐", "午餐", "晚餐"]},
+        {"name": "麦当劳校园店", "location": "西侧无缝联通"},
+        {"name": "甜魔咖啡", "location": "周边"},
+        {"name": "采芝斋", "location": "周边"},
+        {"name": "蔬果每日", "location": "周边"},
+        {"name": "玉兰面包店", "location": "周边"}
+      ],
+      "spring_feature": "春季玉兰花开，被誉为交大最美食堂"
+    },
+    {
+      "id": 200,
+      "name": "第二餐饮大楼",
+      "campus": "闵行",
+      "location_desc": "东一、二区宿舍楼群之间，毗邻东上、中、下院，地理位置核心，下课时间人头攒动",
+      "floors": [
+        {
+          "floor": 1,
+          "meal_services": ["早餐", "午餐", "晚餐"],
+          "sub_areas": [
+            {"name": "小吃广场", "cuisine": "综合", "recommended_dishes": ["咖喱饭", "烤鱼饭"]},
+            {"name": "上海快餐", "cuisine": "本帮菜"},
+            {"name": "西式餐厅", "cuisine": "西餐", "recommended_dishes": ["烤盘饭", "土豆泥拌饭"]}
+          ],
+          "features": ["减脂餐", "麻辣烫", "咖喱饭", "烤鱼"]
+        },
+        {
+          "floor": 2,
+          "meal_services": ["午餐", "晚餐"],
+          "sub_areas": [
+            {"name": "大众餐厅", "cuisine": "大众"},
+            {"name": "教工餐厅", "cuisine": "教工餐", "recommended_dishes": ["排骨年糕"]},
+            {"name": "陈香贵", "cuisine": "牛肉面", "hours": "11:00-13:00, 18:00-21:00", "added": "2025"}
+          ]
+        },
+        {
+          "floor": 3,
+          "meal_services": ["午餐", "晚餐"],
+          "sub_areas": [
+            {"name": "绿园餐厅", "cuisine": "综合", "recommended_dishes": ["铁板烧", "小碗菜"]}
+          ]
+        }
+      ],
+      "nearby_shops": ["高麦卷饼", "小陈水果店"],
+      "is_busy_peak": true
+    },
+    {
+      "id": 300,
+      "name": "第三餐饮大楼",
+      "campus": "闵行",
+      "location_desc": "学生活动中心北侧、东三区宿舍楼旁、捭阖塘边，夏日赏荷绝佳去处",
+      "floors": [
+        {
+          "floor": 1,
+          "meal_services": ["早餐", "午餐", "晚餐"],
+          "sub_areas": [
+            {"name": "学生餐厅", "cuisine": "综合", "features": ["自选菜", "盖浇饭", "水饺"]},
+            {"name": "鲜烫吊龙米线", "cuisine": "米线", "is_popular": true, "added": "2025", "notes": "上交顶流，必打卡档口"}
+          ]
+        },
+        {
+          "floor": 2,
+          "meal_services": ["早餐", "午餐", "晚餐"],
+          "sub_areas": [
+            {"name": "民族风味餐厅", "cuisine": "清真", "features": ["拉面", "抓饭", "快餐"]},
+            {"name": "外婆桥小吃广场", "cuisine": "综合", "meal_services": ["午餐", "晚餐"], "features": ["牛杂煲", "铁板烧", "湘西小炒"]}
+          ]
+        }
+      ],
+      "nearby_shops": [
+        {"name": "瑞幸咖啡", "location": "餐厅两侧", "feature": "临湖休息区"},
+        {"name": "捭阖坊小商业街"},
+        {"name": "汉堡奶茶店", "recommended": ["冰糖葫芦", "炒酸奶"]}
+      ]
+    },
+    {
+      "id": 400,
+      "name": "第四餐饮大楼",
+      "campus": "闵行",
+      "location_desc": "校园西北方位，正对李政道图书馆，毗邻西三区宿舍、理科群楼、学生创新中心及霍英东体育中心，最具人气之一",
+      "floors": [
+        {
+          "floor": 1,
+          "meal_services": ["早餐", "午餐", "晚餐"],
+          "sub_areas": [
+            {"name": "小吃广场", "cuisine": "综合", "recommended_dishes": ["烤鸭饭", "湖南小炒", "五谷拌饭/面"]}
+          ]
+        },
+        {
+          "floor": 2,
+          "meal_services": ["午餐", "晚餐"],
+          "sub_areas": [
+            {"name": "学生餐厅", "cuisine": "综合", "features": ["自选菜", "农家菜", "鸭血粉丝汤", "麻辣烫"]},
+            {"name": "吉姆丽德西餐厅", "cuisine": "西餐", "hours": "10:30-22:00", "notes": "校园小聚首选"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": 500,
+      "name": "第五餐饮大楼",
+      "campus": "闵行",
+      "location_desc": "毗邻电院群楼，淡水河畔，享有「湖景餐厅」美誉，建筑呈U字形布局",
+      "floors": [
+        {
+          "floor": 1,
+          "meal_services": ["午餐", "晚餐"],
+          "sub_areas": [
+            {"name": "东湖面馆", "cuisine": "苏式/面食", "recommended_dishes": ["苏式汤包", "特色生煎", "葱油拌面"], "notes": "爱吃甜口的同学必去"},
+            {"name": "学生餐厅", "cuisine": "综合", "features": ["健康轻食", "麻辣香锅", "石锅饭", "自选菜"]}
+          ]
+        },
+        {
+          "floor": 2,
+          "meal_services": ["午餐", "晚餐"],
+          "sub_areas": [
+            {"name": "大众餐厅", "cuisine": "大众"},
+            {"name": "无田有果", "cuisine": "综合", "recommended_dishes": ["滑蛋饭", "桂林米粉"], "hours": "10:00-22:30"}
+          ]
+        },
+        {
+          "floor": 3,
+          "meal_services": ["午餐", "晚餐"],
+          "sub_areas": [
+            {"name": "吉姆丽德西餐厅", "cuisine": "西餐", "notes": "与四餐吉姆丽德大致相似，就近选择"}
+          ]
+        }
+      ],
+      "nearby_shops": [
+        {"name": "校园咖啡", "location": "临河", "notes": "休闲小憩，商务洽谈"},
+        {"name": "悸动烧仙草", "notes": "饮品店"}
+      ]
+    },
+    {
+      "id": 600,
+      "name": "第六餐饮大楼",
+      "campus": "闵行",
+      "location_desc": "闵行校区东侧，综合实验楼与生命科学技术学院之间，25年智慧食堂全面升级，成为就餐新地标",
+      "floors": [
+        {
+          "floor": 1,
+          "meal_services": ["早餐", "午餐", "晚餐"],
+          "sub_areas": [
+            {"name": "学生餐厅", "cuisine": "综合"}
+          ]
+        },
+        {
+          "floor": 2,
+          "meal_services": ["午餐", "晚餐"],
+          "sub_areas": [
+            {"name": "智慧食堂", "cuisine": "综合", "added": "2025", "notes": "25年全面升级，备受欢迎"},
+            {"name": "伊诺咖啡", "cuisine": "西餐/咖啡", "hours": "10:00-20:00", "recommended_dishes": ["芝士牛肉咖喱饭"], "features": ["汉堡", "牛排", "咖啡", "甜品"]}
+          ]
+        }
+      ]
+    },
+    {
+      "id": 700,
+      "name": "第七餐饮大楼",
+      "campus": "闵行",
+      "location_desc": "转化医学楼北侧，靠近农业与生物学院，校内规模最小的餐厅，全景玻璃房设计",
+      "floors": [
+        {
+          "floor": 1,
+          "meal_services": ["午餐", "晚餐"],
+          "sub_areas": [
+            {"name": "中式自选", "cuisine": "中式自选"},
+            {"name": "赛文西餐厅", "cuisine": "西餐"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": 800,
+      "name": "哈乐餐厅",
+      "campus": "闵行",
+      "location_desc": "西一区宿舍群内，25年完成升级改造",
+      "hours": "10:00-22:00",
+      "floors": [
+        {
+          "floor": 1,
+          "meal_services": ["午餐", "晚餐", "夜宵"],
+          "sub_areas": [
+            {"name": "蔬食主义窗口", "cuisine": "素食", "notes": "特色窗口"},
+            {"name": "综合窗口", "cuisine": "综合", "recommended_dishes": ["胡辣汤"]}
+          ]
+        }
+      ],
+      "added": "2025年升级"
+    },
+    {
+      "id": 900,
+      "name": "玉兰苑",
+      "campus": "闵行",
+      "location_desc": "校园内集学习、休闲与文化于一体的综合商圈",
+      "is_commercial": true,
+      "floors": [
+        {
+          "floor": 1,
+          "meal_services": [],
+          "sub_areas": [
+            {"name": "统禾餐厅", "cuisine": "综合", "hours": "10:00-22:00"},
+            {"name": "一等茶餐厅", "cuisine": "茶餐厅", "hours": "10:30-21:30"},
+            {"name": "巴比", "cuisine": "包子/早点", "hours": "6:00-22:00"},
+            {"name": "饼家", "cuisine": "小吃", "hours": "6:00-22:00", "recommended_dishes": ["鸡蛋灌饼"]},
+            {"name": "串府", "cuisine": "烧烤/串串", "hours": "10:30-23:30"},
+            {"name": "餐堡", "cuisine": "西式快餐", "hours": "10:30-23:30", "recommended_dishes": ["菠萝包"]},
+            {"name": "罗森便利店", "cuisine": "便利店", "hours": "24小时"}
+          ]
+        }
+      ],
+      "notes": "商铺营业时间延长，极大补充食堂餐饮服务"
+    },
+    {
+      "id": 0,
+      "name": "咖啡饮品",
+      "campus": "闵行",
+      "is_drink_only": true,
+      "location_desc": "闵行校区内汇聚30余家饮品店",
+      "shops": [
+        {"name": "交图创咖", "type": "自营", "recommended": ["桂花拿铁"], "notes": "性价比之王"},
+        {"name": "Manner", "type": "连锁", "notes": "自带杯实惠"},
+        {"name": "瑞幸咖啡", "type": "连锁", "notes": "课前二十分钟总是排队"},
+        {"name": "Timo咖啡", "type": "连锁", "recommended": ["草莓奶昔"]},
+        {"name": "蒙楼咖啡", "type": "自营", "location": "程及美术馆前露台", "notes": "眺望思源湖"},
+        {"name": "7days咖啡屋", "type": "自营", "location": "植物园内", "notes": "静享自然"},
+        {"name": "交环创咖", "type": "自营", "recommended": ["吐司冰淇淋"]},
+        {"name": "霸王茶姬", "type": "连锁"}
+      ]
+    }
+  ],
+  "dining_hours": {
+    "standard": {
+      "早餐": "7:00-9:00",
+      "午餐": "11:00-13:00",
+      "晚餐": "17:00-19:00"
+    },
+    "note": "各食堂基本统一，具体档口可能有差异。非供餐时段 API 数据显示 Non-Dining 状态。"
+  }
+}
