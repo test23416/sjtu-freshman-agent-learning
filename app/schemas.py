@@ -42,6 +42,7 @@ class ChatRequest(BaseModel):
     profile:StudentProfile | None = None
     location:UserLocation | None = None
     dining_preferences:list[DiningPreference] = Field(default_factory=list)
+    model: str | None = None
 
 class ChatResponse(BaseModel):
     answer: str

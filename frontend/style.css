@@ -345,6 +345,17 @@ textarea:active {
   gap: 8px;
 }
 
+.model-select {
+  width: auto;
+  min-width: 150px;
+  height: 38px;
+  padding: 0 10px;
+  background: var(--surface);
+  color: #344054;
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .primary-button,
 .secondary-button,
 .card-map-button {
@@ -583,6 +594,52 @@ textarea:active {
   text-decoration: underline;
 }
 
+.campus-tour-card {
+  display: grid;
+  gap: 12px;
+}
+
+.tour-stop-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 22px;
+}
+
+.tour-stop {
+  padding: 10px 12px;
+  border: 1px solid rgba(152, 162, 179, 0.24);
+  border-radius: var(--radius);
+  background: rgba(248, 250, 252, 0.78);
+}
+
+.tour-stop-title {
+  margin-bottom: 4px;
+  font-weight: 800;
+  color: #182230;
+}
+
+.tour-tips {
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: rgba(31, 111, 235, 0.06);
+}
+
+.tour-tips-title {
+  margin-bottom: 6px;
+  font-weight: 800;
+  color: #1849a9;
+}
+
+.tour-tips ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  color: #344054;
+  line-height: 1.55;
+}
+
 .card-warning {
   margin-top: 7px;
   color: var(--warning);
@@ -708,6 +765,11 @@ textarea:active {
 
   .button-row button {
     flex: 1;
+  }
+
+  .model-select {
+    flex: 1.2;
+    min-width: 0;
   }
 
   .message {

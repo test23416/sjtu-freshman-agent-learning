@@ -255,6 +255,47 @@
   line-height: 1.5;
 }
 
+.tour-row {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 12rpx;
+  padding: 14rpx;
+  border-radius: 12rpx;
+  background: #ffffff;
+}
+
+.tour-index {
+  flex: 0 0 36rpx;
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 999rpx;
+  background: #1f6feb;
+  color: #ffffff;
+  font-size: 22rpx;
+  font-weight: 800;
+  line-height: 36rpx;
+  text-align: center;
+}
+
+.tour-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.tour-tips {
+  margin-top: 14rpx;
+  padding: 14rpx;
+  border-radius: 12rpx;
+  background: rgba(31, 111, 235, 0.08);
+}
+
+.tip {
+  margin-top: 6rpx;
+  color: #344054;
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
 .step,
 .dining-row {
   margin-top: 10rpx;
@@ -284,8 +325,29 @@
 .actions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 14rpx;
   margin-top: 14rpx;
+}
+
+.model-picker {
+  flex: 1;
+  min-width: 0;
+}
+
+.model-picker-view {
+  min-height: 70rpx;
+  padding: 0 18rpx;
+  border: 1rpx solid #d8dee8;
+  border-radius: 12rpx;
+  background: #ffffff;
+  color: #344054;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 70rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .primary,
@@ -303,6 +365,10 @@
 .primary {
   background: #1f6feb;
   color: #ffffff;
+}
+
+.primary.danger {
+  background: #c24135;
 }
 
 .secondary {

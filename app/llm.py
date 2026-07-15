@@ -6,6 +6,22 @@ import httpx
 from app.config import OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL
 
 
+MODEL_OPTIONS = {
+    "deepseek-chat": "deepseek-chat",
+    "deepseek-reasoner": "deepseek-reasoner",
+    "minimax": "minimax",
+    "minimax-m2.7": "minimax-m2.7",
+    "qwen": "qwen",
+    "qwen3.6-27b": "qwen3.6-27b",
+}
+
+
+def resolve_model(model: str | None = None) -> str:
+    if model in MODEL_OPTIONS:
+        return MODEL_OPTIONS[model]
+    return OPENAI_MODEL
+
+
 def profile_role(profile=None) -> str:
     return getattr(profile, "role", "student") if profile else "student"
 
@@ -128,11 +144,13 @@ def generate_answer(
     history: list = None,
     profile=None,
     tool_results: list[dict] = None,
+    model: str | None = None,
 ) -> tuple[str, bool]:
     if not OPENAI_API_KEY:
         print("没有读取到 OPENAI_API_KEY，使用本地 fallback 回答")
         return generate_fallback_answer(question, contexts, profile=profile), False
 
+    selected_model = resolve_model(model)
     prompt = build_prompt(
         question=question,
         contexts=contexts,
@@ -149,7 +167,7 @@ def generate_answer(
                 "Content-Type": "application/json",
             },
             json={
-                "model": OPENAI_MODEL,
+                "model": selected_model,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.3,
             },
@@ -159,7 +177,7 @@ def generate_answer(
         data = response.json()
         return data["choices"][0]["message"]["content"], True
     except Exception as error:
-        print("调用大模型失败", repr(error))
+        print("调用大模型失败", selected_model, repr(error))
         return generate_fallback_answer(question, contexts, profile=profile), False
 
 
@@ -183,10 +201,16 @@ def extract_json_object(text: str) -> dict | None:
         return None
 
 
-def plan_tool_use(question: str, history: list = None, profile=None) -> dict | None:
+def plan_tool_use(
+    question: str,
+    history: list = None,
+    profile=None,
+    model: str | None = None,
+) -> dict | None:
     if not OPENAI_API_KEY:
         return None
 
+    selected_model = resolve_model(model)
     history = history or []
     history_text = "\n".join(f"{item.role}: {item.content}" for item in history[-8:])
     profile_text = profile.model_dump_json(exclude_none=True) if profile else "无"
@@ -246,7 +270,7 @@ def plan_tool_use(question: str, history: list = None, profile=None) -> dict | N
                 "Content-Type": "application/json",
             },
             json={
-                "model": OPENAI_MODEL,
+                "model": selected_model,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0,
             },
@@ -256,7 +280,7 @@ def plan_tool_use(question: str, history: list = None, profile=None) -> dict | N
         data = response.json()
         content = data["choices"][0]["message"]["content"]
     except Exception as error:
-        print("工具规划调用大模型失败", repr(error))
+        print("工具规划调用大模型失败", selected_model, repr(error))
         return None
 
     plan = extract_json_object(content)

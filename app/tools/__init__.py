@@ -4,6 +4,7 @@ from app.tools.dining import run_dining_tools
 from app.tools.official import run_official_tools
 from app.tools.parent import run_parent_tools
 from app.tools.places import run_place_tools
+from app.tools.tours import run_tour_tools
 
 
 def run_tools(question: str, history=None, profile=None, location=None) -> dict:
@@ -23,6 +24,10 @@ def run_tools(question: str, history=None, profile=None, location=None) -> dict:
     parent_output = run_parent_tools(question, profile=profile)
     tool_results.extend(parent_output.get("tool_results", []))
     cards.extend(parent_output.get("cards", []))
+
+    tour_output = run_tour_tools(question, profile=profile)
+    tool_results.extend(tour_output.get("tool_results", []))
+    cards.extend(tour_output.get("cards", []))
 
     place_output = run_place_tools(question, history=history, profile=profile, location=location)
     tool_results.extend(place_output.get("tool_results", []))

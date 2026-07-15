@@ -143,7 +143,47 @@ function buildRouteMapData(card) {
   };
 }
 
+function buildTourMapData(card) {
+  const stops = ((card.data || {}).stops || []).filter(hasCoordinate);
+  const points = stops.map(toMapPoint).filter(Boolean);
+
+  if (points.length === 0) {
+    return {
+      can_draw: false,
+      message: "这条参观路线暂时没有可绘制的坐标。"
+    };
+  }
+
+  return {
+    can_draw: true,
+    latitude: points[0].latitude,
+    longitude: points[0].longitude,
+    markers: points.map((point, index) => ({
+      id: index + 1,
+      ...point,
+      title: stops[index].title || stops[index].place_name || `第 ${index + 1} 站`,
+      width: 26,
+      height: 26
+    })),
+    polyline:
+      points.length >= 2
+        ? [
+            {
+              points,
+              color: "#1f6feb",
+              width: 5,
+              dottedLine: false,
+              arrowLine: true
+            }
+          ]
+        : []
+  };
+}
+
 Page({
+  currentRequestTask: null,
+  cancelRequested: false,
+
   data: {
     apiBaseUrl: app.globalData.defaultApiBaseUrl,
     inputText: "",
@@ -153,6 +193,14 @@ Page({
     currentLocation: null,
     roleOptions: ["新生", "家长"],
     roleIndex: 0,
+    modelOptions: [
+      { label: "DeepSeek V4 Flash（常规）", value: "deepseek-chat" },
+      { label: "DeepSeek V4 Flash（思考）", value: "deepseek-reasoner" },
+      { label: "MiniMax-M2.7", value: "minimax-m2.7" },
+      { label: "Qwen3.6-27B", value: "qwen3.6-27b" }
+    ],
+    modelLabels: ["DeepSeek V4 Flash（常规）", "DeepSeek V4 Flash（思考）", "MiniMax-M2.7", "Qwen3.6-27B"],
+    modelIndex: 0,
     profile: {
       campus: "",
       college: "",
@@ -182,6 +230,10 @@ Page({
     this.setData({ roleIndex: Number(event.detail.value) });
   },
 
+  onModelChange(event) {
+    this.setData({ modelIndex: Number(event.detail.value) });
+  },
+
   onProfileInput(event) {
     const key = event.currentTarget.dataset.key;
     this.setData({
@@ -194,6 +246,7 @@ Page({
   },
 
   clearChat() {
+    this.cancelResponse();
     wx.removeStorageSync(STORAGE_KEY);
     this.setData({ messages: [], error: "" });
   },
@@ -273,7 +326,7 @@ Page({
     const baseUrl = this.data.apiBaseUrl.replace(/\/$/, "");
 
     return new Promise((resolve, reject) => {
-      wx.request({
+      const task = wx.request({
         url: `${baseUrl}/api/chat`,
         method: "POST",
         header: {
@@ -281,6 +334,9 @@ Page({
         },
         data: payload,
         success: (res) => {
+          if (this.currentRequestTask === task) {
+            this.currentRequestTask = null;
+          }
           if (res.statusCode < 200 || res.statusCode >= 300) {
             reject(new Error(`后端返回 ${res.statusCode}`));
             return;
@@ -288,9 +344,14 @@ Page({
           resolve(res.data);
         },
         fail: (error) => {
+          if (this.currentRequestTask === task) {
+            this.currentRequestTask = null;
+          }
           reject(new Error(error.errMsg || "请求失败"));
         }
       });
+
+      this.currentRequestTask = task;
     });
   },
 
@@ -353,6 +414,10 @@ Page({
         next.data.route_map = buildRouteMapData(next);
       }
 
+      if (next.type === "campus_tour") {
+        next.data.tour_map = buildTourMapData(next);
+      }
+
       if (next.type === "dining" || next.type === "food_recommendation") {
         next.data.recommendations = this.normalizeDiningRecommendations(next.data.recommendations);
       }
@@ -366,8 +431,13 @@ Page({
   },
 
   async sendMessage() {
+    if (this.data.sending) {
+      this.cancelResponse();
+      return;
+    }
+
     const text = this.data.inputText.trim();
-    if (!text || this.data.sending) {
+    if (!text) {
       return;
     }
 
@@ -375,6 +445,7 @@ Page({
   },
 
   async sendChatText(text, options = {}) {
+    this.cancelRequested = false;
     const addUserMessage = options.addUserMessage !== false;
     const userMessage = {
       id: `u_${Date.now()}`,
@@ -402,12 +473,17 @@ Page({
 
     try {
       const location = options.location || (await this.getLocationIfNeeded(text));
+      if (this.cancelRequested) {
+        return;
+      }
+
       const data = await this.requestChat({
         message: text,
         history: this.buildHistory(this.data.messages),
         profile: this.buildProfile(),
         location,
-        dining_preferences: []
+        dining_preferences: [],
+        model: this.data.modelOptions[this.data.modelIndex].value
       });
 
       console.log("chat response", data);
@@ -429,6 +505,16 @@ Page({
       this.persistMessages(nextMessages);
     } catch (error) {
       const nextMessages = this.data.messages.filter((message) => !message.thinking);
+      if (this.cancelRequested) {
+        this.setData({
+          messages: nextMessages,
+          sending: false,
+          error: "已中止回答。"
+        });
+        this.persistMessages(nextMessages);
+        return;
+      }
+
       this.setData({
         messages: nextMessages,
         sending: false,
@@ -436,6 +522,27 @@ Page({
       });
       this.persistMessages(nextMessages);
     }
+  },
+
+  cancelResponse() {
+    if (!this.data.sending && !this.currentRequestTask) {
+      return;
+    }
+
+    this.cancelRequested = true;
+
+    if (this.currentRequestTask && typeof this.currentRequestTask.abort === "function") {
+      this.currentRequestTask.abort();
+      this.currentRequestTask = null;
+    }
+
+    const nextMessages = this.data.messages.filter((message) => !message.thinking);
+    this.setData({
+      messages: nextMessages,
+      sending: false,
+      error: "已中止回答。"
+    });
+    this.persistMessages(nextMessages);
   },
 
   async navigateToDining(event) {

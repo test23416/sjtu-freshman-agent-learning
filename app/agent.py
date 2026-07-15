@@ -7,6 +7,7 @@ from app.tools.dining import run_dining_tools
 from app.tools.official import run_official_tools
 from app.tools.parent import run_parent_tools
 from app.tools.places import run_place_tools
+from app.tools.tours import run_tour_tools
 
 
 def merge_parent_contexts(results: list[dict], question: str) -> list[dict]:
@@ -56,6 +57,17 @@ def build_checklist_answer(checklist_result: dict) -> str:
     )
 
 
+def build_tour_answer(tour_result: dict) -> str:
+    card = tour_result["cards"][0]
+    data = card["data"]
+    stop_count = len(data.get("stops", []))
+
+    return (
+        f"可以走这条路线：{data.get('title')}，预计用时 {data.get('duration')}，"
+        f"一共 {stop_count} 个点位。下面卡片里按顺序列出了每一站；有坐标的点位也会在地图上连成参观路线。"
+    )
+
+
 def chat_with_agent(request: ChatRequest) -> ChatResponse:
     # Static official tools are deterministic; route and dining tools still use the LLM planner.
     results = search_knowledge(request.message)
@@ -78,6 +90,17 @@ def chat_with_agent(request: ChatRequest) -> ChatResponse:
     parent_result = run_parent_tools(request.message, profile=request.profile)
     tool_results.extend(parent_result["tool_results"])
 
+    tour_result = run_tour_tools(request.message, profile=request.profile)
+    tool_results.extend(tour_result["tool_results"])
+
+    if tour_result["cards"]:
+        return ChatResponse(
+            answer=build_tour_answer(tour_result),
+            sources=results,
+            used_llm=False,
+            cards=tour_result["cards"],
+        )
+
     checklist_result = run_checklist_tools(request.message)
     tool_results.extend(checklist_result["tool_results"])
 
@@ -93,6 +116,7 @@ def chat_with_agent(request: ChatRequest) -> ChatResponse:
         request.message,
         history=request.history,
         profile=request.profile,
+        model=request.model,
     )
 
     place_result = run_place_tools(
@@ -119,6 +143,7 @@ def chat_with_agent(request: ChatRequest) -> ChatResponse:
         history=request.history,
         profile=request.profile,
         tool_results=tool_results,
+        model=request.model,
     )
 
     return ChatResponse(

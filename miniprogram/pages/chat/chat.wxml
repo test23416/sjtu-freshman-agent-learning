@@ -108,6 +108,39 @@
                 </view>
               </view>
 
+              <view wx:elif="{{card.type === 'campus_tour'}}">
+                <map
+                  wx:if="{{card.data.tour_map && card.data.tour_map.can_draw}}"
+                  class="route-map"
+                  latitude="{{card.data.tour_map.latitude}}"
+                  longitude="{{card.data.tour_map.longitude}}"
+                  markers="{{card.data.tour_map.markers}}"
+                  polyline="{{card.data.tour_map.polyline}}"
+                  scale="16"
+                ></map>
+                <view wx:elif="{{card.data.tour_map && !card.data.tour_map.can_draw}}" class="card-warning">
+                  {{card.data.tour_map.message}}
+                </view>
+                <view class="desc">{{card.data.description}}</view>
+                <view class="meta">{{card.data.campus}} 路 {{card.data.duration}}</view>
+                <block wx:for="{{card.data.stops}}" wx:for-item="stop" wx:key="index">
+                  <view class="tour-row">
+                    <view class="tour-index">{{index + 1}}</view>
+                    <view class="tour-body">
+                      <view class="source-title">{{stop.title || stop.place_name}}</view>
+                      <view class="meta">{{stop.place_name}}</view>
+                      <view class="desc">{{stop.description}}</view>
+                    </view>
+                  </view>
+                </block>
+                <view wx:if="{{card.data.tips && card.data.tips.length}}" class="tour-tips">
+                  <view class="group-title">小提醒</view>
+                  <block wx:for="{{card.data.tips}}" wx:for-item="tip" wx:key="index">
+                    <view class="tip">- {{tip}}</view>
+                  </block>
+                </view>
+              </view>
+
               <view wx:elif="{{card.type === 'dining' || card.type === 'food_recommendation'}}">
                 <block wx:for="{{card.data.recommendations}}" wx:for-item="rec" wx:key="index">
                   <view class="dining-row">
@@ -139,8 +172,11 @@
     <view wx:if="{{error}}" class="error">{{error}}</view>
     <textarea class="textarea" value="{{inputText}}" bindinput="onInput" placeholder="输入问题..." auto-height maxlength="800" />
     <view class="actions">
+      <picker class="model-picker" range="{{modelLabels}}" value="{{modelIndex}}" bindchange="onModelChange">
+        <view class="picker model-picker-view">{{modelLabels[modelIndex]}}</view>
+      </picker>
       <button class="secondary" bindtap="clearChat">清空</button>
-      <button class="primary" loading="{{sending}}" disabled="{{sending}}" bindtap="sendMessage">发送</button>
+      <button class="primary {{sending ? 'danger' : ''}}" bindtap="sendMessage">{{sending ? '中止回答' : '发送'}}</button>
     </view>
   </view>
 </view>

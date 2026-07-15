@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <title>交大新生助手</title>
-    <link rel="stylesheet" href="./style.css?v=20260715-parent-mode" />
+    <link rel="stylesheet" href="./style.css?v=20260715-model-inline" />
   </head>
   <body>
     <main class="app-shell">
@@ -71,6 +71,12 @@
             <div class="composer-actions">
               <div id="error" class="error"></div>
               <div class="button-row">
+                <select id="modelSelect" class="model-select" aria-label="选择模型">
+                  <option value="deepseek-chat">DeepSeek 常规</option>
+                  <option value="deepseek-reasoner">DeepSeek 思考</option>
+                  <option value="minimax-m2.7">MiniMax-M2.7</option>
+                  <option value="qwen3.6-27b">Qwen3.6-27B</option>
+                </select>
                 <button id="clearButton" type="button" class="secondary-button">
                   清空对话
                 </button>
@@ -83,6 +89,6 @@
     </main>
 
     <script src="./config.js"></script>
-    <script src="./app.js?v=20260715-parent-mode"></script>
+    <script src="./app.js?v=20260715-model-inline"></script>
   </body>
 </html>

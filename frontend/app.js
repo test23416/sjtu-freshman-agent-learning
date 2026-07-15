@@ -2,6 +2,7 @@ const STORAGE_KEY = "sjtu_freshman_chat_history";
 const DINING_PREFERENCES_KEY = "sjtu_freshman_dining_preferences";
 const LOCATION_STORAGE_KEY = "sjtu_freshman_last_location";
 const CHECKLIST_STORAGE_KEY = "sjtu_freshman_checklist_state";
+const MODEL_STORAGE_KEY = "sjtu_freshman_selected_model";
 const config = window.APP_CONFIG || {};
 const API_BASE_URL = (config.API_BASE_URL || window.location.origin || "").replace(/\/$/, "");
 const ROUTE_WORDS = [
@@ -76,6 +77,7 @@ let amapReadyPromise = null;
 let campusMap = null;
 let currentLocationPromise = null;
 let lastLocationError = "";
+let activeChatAbortController = null;
 
 function isRouteQuestion(message) {
   return ROUTE_WORDS.some((word) => message.includes(word));
@@ -305,12 +307,105 @@ async function showRouteOnMap(routeCardData, mapMount) {
   campusMap.setFitView([startMarker, endMarker, polyline]);
 }
 
+function extractTourPath(stops) {
+  return (stops || [])
+    .filter(
+      (stop) =>
+        Number.isFinite(Number(stop.lng)) && Number.isFinite(Number(stop.lat)),
+    )
+    .map((stop) => [Number(stop.lng), Number(stop.lat)]);
+}
+
+async function showTourOnMap(tourData, mapMount) {
+  const path = extractTourPath(tourData.stops);
+
+  if (path.length === 0) {
+    showInlineMapStatus(mapMount, "这条参观路线暂时没有可绘制的坐标。");
+    return;
+  }
+
+  const AMap = await loadAmapScript();
+
+  if (campusMap && typeof campusMap.destroy === "function") {
+    campusMap.destroy();
+  }
+
+  mapMount.hidden = false;
+  mapMount.innerHTML = "";
+  mapMount.classList.remove("map-section-enter");
+
+  const header = document.createElement("div");
+  header.className = "map-header";
+  header.textContent = "校园参观路线";
+
+  const mapCanvas = document.createElement("div");
+  mapCanvas.className = "campus-map";
+
+  mapMount.appendChild(header);
+  mapMount.appendChild(mapCanvas);
+
+  requestAnimationFrame(() => {
+    mapMount.classList.add("map-section-enter");
+  });
+
+  campusMap = new AMap.Map(mapCanvas, {
+    zoom: 16,
+    resizeEnable: true,
+    center: path[0],
+  });
+
+  const markers = (tourData.stops || [])
+    .filter(
+      (stop) =>
+        Number.isFinite(Number(stop.lng)) && Number.isFinite(Number(stop.lat)),
+    )
+    .map(
+      (stop, index) =>
+        new AMap.Marker({
+          position: [Number(stop.lng), Number(stop.lat)],
+          title: stop.title || stop.place_name || `第 ${index + 1} 站`,
+          label: {
+            content: `${index + 1}. ${stop.title || stop.place_name || "站点"}`,
+            direction: "top",
+          },
+        }),
+    );
+
+  const overlays = [...markers];
+
+  if (path.length >= 2) {
+    overlays.push(
+      new AMap.Polyline({
+        path,
+        showDir: true,
+        strokeWeight: 5,
+        strokeColor: "#1f6feb",
+      }),
+    );
+  }
+
+  campusMap.add(overlays);
+  campusMap.setFitView(overlays);
+}
+
 const messageInput = document.getElementById("message");
 const sendButton = document.getElementById("sendButton");
 const chatLog = document.getElementById("chatLog");
 const errorBox = document.getElementById("error");
 const clearButton = document.getElementById("clearButton");
 const serverStatus = document.getElementById("serverStatus");
+const modelSelect = document.getElementById("modelSelect");
+
+if (modelSelect) {
+  modelSelect.value = localStorage.getItem(MODEL_STORAGE_KEY) || "deepseek-chat";
+  modelSelect.addEventListener("change", () => {
+    localStorage.setItem(MODEL_STORAGE_KEY, modelSelect.value);
+  });
+}
+
+function getSelectedModel() {
+  return modelSelect ? modelSelect.value : "deepseek-chat";
+}
 
 function buildProfile() {
   return {
@@ -394,6 +489,7 @@ async function showDiningRoute(canteen, mapMount, button) {
         profile: buildProfile(),
         location: location,
         dining_preferences: diningPreferences,
+        model: getSelectedModel(),
       }),
     });
 
@@ -564,6 +660,101 @@ function renderCards(cards, container) {
         link.rel = "noopener noreferrer";
         link.textContent = "打开高德导航";
         item.appendChild(link);
+      }
+
+      cardsBox.appendChild(item);
+    }
+
+    if (card.type === "campus_tour") {
+      const data = card.data || {};
+      const stops = data.stops || [];
+      const hasMapPoints = extractTourPath(stops).length > 0;
+
+      const item = document.createElement("div");
+      item.className = "card-item campus-tour-card";
+
+      const title = document.createElement("div");
+      title.className = "card-title";
+      title.textContent = card.title || data.title || "校园参观路线";
+      item.appendChild(title);
+
+      const meta = document.createElement("div");
+      meta.className = "card-meta";
+      meta.textContent = `${data.campus || "校区"} | ${data.duration || "预计用时待确认"}`;
+      item.appendChild(meta);
+
+      if (data.description) {
+        const description = document.createElement("div");
+        description.className = "card-description";
+        description.textContent = data.description;
+        item.appendChild(description);
+      }
+
+      const stopList = document.createElement("ol");
+      stopList.className = "tour-stop-list";
+
+      stops.forEach((stop) => {
+        const li = document.createElement("li");
+        li.className = "tour-stop";
+
+        const stopTitle = document.createElement("div");
+        stopTitle.className = "tour-stop-title";
+        stopTitle.textContent = stop.title || stop.place_name || "参观点";
+
+        const stopPlace = document.createElement("div");
+        stopPlace.className = "card-meta";
+        stopPlace.textContent = stop.place_name || "";
+
+        const stopDesc = document.createElement("div");
+        stopDesc.className = "card-description";
+        stopDesc.textContent = stop.description || "";
+
+        li.appendChild(stopTitle);
+        if (stop.place_name) {
+          li.appendChild(stopPlace);
+        }
+        if (stop.description) {
+          li.appendChild(stopDesc);
+        }
+        stopList.appendChild(li);
+      });
+
+      item.appendChild(stopList);
+
+      const tips = data.tips || [];
+      if (tips.length > 0) {
+        const tipsBox = document.createElement("div");
+        tipsBox.className = "tour-tips";
+
+        const tipsTitle = document.createElement("div");
+        tipsTitle.className = "tour-tips-title";
+        tipsTitle.textContent = "小提醒";
+        tipsBox.appendChild(tipsTitle);
+
+        const tipsList = document.createElement("ul");
+        tips.forEach((tip) => {
+          const li = document.createElement("li");
+          li.textContent = tip;
+          tipsList.appendChild(li);
+        });
+        tipsBox.appendChild(tipsList);
+        item.appendChild(tipsBox);
+      }
+
+      if (hasMapPoints) {
+        const inlineMap = document.createElement("div");
+        inlineMap.className = "map-section inline-map-section";
+        inlineMap.hidden = true;
+        item.appendChild(inlineMap);
+
+        showTourOnMap(data, inlineMap).catch((error) => {
+          showInlineMapStatus(inlineMap, `参观路线地图加载失败：${error.message}`);
+        });
+      } else {
+        const warning = document.createElement("div");
+        warning.className = "card-warning";
+        warning.textContent = "这条参观路线暂时没有可绘制的坐标。";
+        item.appendChild(warning);
       }
 
       cardsBox.appendChild(item);
@@ -834,6 +1025,11 @@ function appendMessage(
 }
 //发送操作
 async function sendMessage() {
+  if (activeChatAbortController) {
+    activeChatAbortController.abort();
+    return;
+  }
+
   const message = messageInput.value.trim();
 
   if (!message) {
@@ -844,8 +1040,9 @@ async function sendMessage() {
   appendMessage("user", message);
   messageInput.value = "";
 
-  sendButton.disabled = true;
-  sendButton.textContent = "思考中...";
+  activeChatAbortController = new AbortController();
+  sendButton.disabled = false;
+  sendButton.textContent = "中止回答";
   errorBox.textContent = "";
   const thinkingMessage = appendThinkingMessage();
 
@@ -862,6 +1059,7 @@ async function sendMessage() {
 
     const response = await fetch(`${API_BASE_URL}/api/chat`, {
       method: "POST",
+      signal: activeChatAbortController.signal,
       headers: {
         "Content-Type": "application/json",
       },
@@ -871,6 +1069,7 @@ async function sendMessage() {
         profile: buildProfile(),
         location: location,
         dining_preferences: diningPreferences,
+        model: getSelectedModel(),
       }),
     });
 
@@ -902,8 +1101,13 @@ async function sendMessage() {
     saveHistory();
   } catch (error) {
     removeThinkingMessage(thinkingMessage);
-    errorBox.textContent = "请求失败：" + error.message;
+    if (error.name === "AbortError") {
+      errorBox.textContent = "已中止回答。";
+    } else {
+      errorBox.textContent = "请求失败：" + error.message;
+    }
   } finally {
+    activeChatAbortController = null;
     sendButton.disabled = false;
     sendButton.textContent = "发送";
     messageInput.focus();
