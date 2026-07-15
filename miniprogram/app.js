@@ -1,5 +1,5 @@
 App({
   globalData: {
-    defaultApiBaseUrl: "http://127.0.0.1:8000"
+    defaultApiBaseUrl: "http://192.168.176.45:8000"
   }
 });

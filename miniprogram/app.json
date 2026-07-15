@@ -2,6 +2,14 @@
   "pages": [
     "pages/chat/chat"
   ],
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于根据当前位置规划校园路线"
+    }
+  },
+  "requiredPrivateInfos": [
+    "getLocation"
+  ],
   "window": {
     "navigationBarTitleText": "交大新生助手",
     "navigationBarBackgroundColor": "#1f6feb",
