@@ -19,3 +19,19 @@ http://127.0.0.1:8000
 ```
 
 如果真机预览，需要把 API 地址改成手机可访问的局域网地址或已配置 HTTPS 域名。
+
+## AppID 配置
+
+真实小程序 AppID 不提交到 GitHub。把它放在项目根目录 `.env`：
+
+```env
+MINIPROGRAM_APPID=你的微信小程序AppID
+```
+
+然后运行：
+
+```powershell
+python scripts/sync_miniprogram_appid.py
+```
+
+脚本会生成已被 `.gitignore` 忽略的 `miniprogram/project.private.config.json`。公开的 `project.config.json` 保持 `touristappid`，避免 GitHub 扫描报警。

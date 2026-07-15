@@ -1,6 +1,6 @@
 {
   "description": "SJTU Freshman Agent miniprogram frontend",
-  "appid": "wxfe787ce87e250b0e",
+  "appid": "touristappid",
   "projectname": "sjtu-freshman-agent-miniprogram",
   "miniprogramRoot": "./",
   "setting": {
