@@ -1,0 +1,83 @@
+{
+  "title": "新生入学准备清单",
+  "description": "这份清单用于覆盖常见入学准备事项，维护者可按学院和当年通知继续补充。",
+  "updated_at": "2026-07-15",
+  "source": "本地维护资料",
+  "groups": [
+    {
+      "title": "到校前",
+      "items": [
+        {
+          "id": "before-id-card",
+          "text": "确认身份证、录取通知书等报到身份证明材料已随身携带。",
+          "priority": "high"
+        },
+        {
+          "id": "before-account",
+          "text": "提前激活学校账号，确认迎新系统、邮箱和常用平台可以登录。",
+          "priority": "high"
+        },
+        {
+          "id": "before-payment",
+          "text": "按学校通知完成缴费、银行卡或校园卡相关准备。",
+          "priority": "medium"
+        },
+        {
+          "id": "before-luggage",
+          "text": "准备少量换洗衣物、常用药、充电器、雨具和必要生活用品。",
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "title": "报到当天",
+      "items": [
+        {
+          "id": "arrival-checkin",
+          "text": "到达指定报到点完成身份核验和学院报到手续。",
+          "priority": "high"
+        },
+        {
+          "id": "arrival-dorm",
+          "text": "领取宿舍钥匙或门禁权限，检查宿舍设施并及时反馈问题。",
+          "priority": "high"
+        },
+        {
+          "id": "arrival-card",
+          "text": "确认校园卡、网络、门禁等基础服务可以正常使用。",
+          "priority": "medium"
+        },
+        {
+          "id": "arrival-schedule",
+          "text": "查看学院通知群和近期日程，确认班会、体检、军训或入学教育安排。",
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "title": "入学后一周",
+      "items": [
+        {
+          "id": "week-course",
+          "text": "熟悉选课系统、课表和教学楼位置，确认第一周课程安排。",
+          "priority": "high"
+        },
+        {
+          "id": "week-health",
+          "text": "按通知完成体检、保险、户籍或档案相关手续。",
+          "priority": "medium"
+        },
+        {
+          "id": "week-canteen",
+          "text": "熟悉宿舍、食堂、图书馆、校医院和快递点等常用地点。",
+          "priority": "medium"
+        },
+        {
+          "id": "week-support",
+          "text": "保存辅导员、班助和学院教务联系方式，遇到问题及时求助。",
+          "priority": "low"
+        }
+      ]
+    }
+  ]
+}

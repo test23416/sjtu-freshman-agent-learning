@@ -1,53 +1,112 @@
-import httpx
 import json
+import re
+
+import httpx
 
 from app.config import OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL
 
 
-def generate_fallback_answer(question: str, contexts: list[dict]) -> str:
-    if not contexts:
-        return "我还没有在知识库里找到相关信息。"
+def profile_role(profile=None) -> str:
+    return getattr(profile, "role", "student") if profile else "student"
 
-    best = contexts[0]
+
+def role_instruction(profile=None) -> str:
+    if profile_role(profile) == "parent":
+        return (
+            "当前用户是新生家长。回答要更关注家长视角，重点覆盖报到陪同、交通接送、"
+            "材料和缴费确认、宿舍入住、安全和防诈骗、孩子适应大学等内容。"
+            "不要替家长做过度承诺；涉及具体政策、时间、费用、电话时，必须提醒以学校/"
+            "学院最新官方通知为准。"
+        )
+
+    return "当前用户是新生。回答要保持新生视角，侧重入学准备、校园生活和实际操作建议。"
+
+
+def clean_context_text(text: str, max_chars: int = 520) -> str:
+    text = re.sub(r"\s+", " ", text or "").strip()
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars].rstrip() + "..."
+
+
+def generate_fallback_answer(question: str, contexts: list[dict], profile=None) -> str:
+    best_content = clean_context_text(contexts[0]["content"]) if contexts else ""
+    official_note = "具体安排以学校或学院最新通知为准。"
+
+    if profile_role(profile) == "parent":
+        if best_content:
+            return (
+                "家长陪同报到时，可以重点关注材料核验、缴费状态、交通接送、宿舍入住、"
+                "安全防诈骗和孩子适应情况。\n\n"
+                f"{best_content}\n\n"
+                f"{official_note}"
+            )
+
+        return (
+            "家长陪同报到时，可以先帮孩子确认身份证、录取通知书、报到系统、缴费状态和学院通知；"
+            "到校后协助完成宿舍入住和路线熟悉，同时尽量让孩子自己和学院、辅导员、宿管沟通。"
+            "也要提醒孩子通过官方渠道缴费，警惕陌生链接、私人收款码和转账要求。\n\n"
+            f"{official_note}"
+        )
+
+    if best_content:
+        return (
+            "报到当天可以先确认报到点、所需材料、宿舍入住、校园卡和学院通知；"
+            "如果还有体检、班会、入学教育等安排，也建议当天一起核对清楚。\n\n"
+            f"{best_content}\n\n"
+            f"{official_note}"
+        )
 
     return (
-        f"你问的是：{question}\n\n"
-        f"我在知识库中找到了相关信息：\n"
-        f"{best['content']}\n\n"
-        f"建议你以学校或学院最新官方通知为准。"
+        "报到当天可以先确认报到点和材料清单，到校后按学院或学校指引完成身份核验、"
+        "宿舍入住、校园卡和网络等基础事项；后续日程以学院通知为准。\n\n"
+        f"{official_note}"
     )
 
 
-def build_prompt(question: str, contexts: list[dict], history: list = None, profile = None,tool_results: list[dict] = None) -> str:
+def build_prompt(
+    question: str,
+    contexts: list[dict],
+    history: list = None,
+    profile=None,
+    tool_results: list[dict] = None,
+) -> str:
     history = history or []
     tool_results = tool_results or []
-    if profile:
-        profile_text = profile.model_dump_json(exclude_none=True)
-    else:
-        profile_text = "无"
+    profile_text = profile.model_dump_json(exclude_none=True) if profile else "无"
 
-    history_text = "\n".join(
-        f"{item.role}:{item.content}"
-        for item in history[-8:]
-    )
-
+    history_text = "\n".join(f"{item.role}: {item.content}" for item in history[-8:])
     context_text = "\n\n".join(
-        f"资料 {index}:{item['title']}\n来源:{item['source']}\n内容:{item['content']}"
+        f"资料 {index}: {item['title']}\n来源: {item['source']}\n内容: {item['content']}"
         for index, item in enumerate(contexts, start=1)
     )
-
     tool_text = "\n\n".join(
-    f"工具:{item['name']}\n结果:{item['content']}"
-    for item in tool_results
+        f"工具: {item['name']}\n结果: {item['content']}"
+        for item in tool_results
     )
 
     return f"""
-你是上海交通大学新生小助手。
-请基于下面的资料回答用户问题。
-如果资料不足，请明确说明需要以学校或学院最新官方通知为准。
-不要编造日期、地点、政策细节。
-如果工具结果里有 dining_tool 的食堂推荐，即使实时拥挤度或历史偏好暂未获取，也要基于工具给出的本地食堂知识库推荐明确回答；不要只说“无法推荐”。
-回答食堂问题时，区分依据来源：有实时拥挤度就说明实时依据；没有实时拥挤度时说明“先按本地食堂知识库和已记录偏好推荐”。
+你是上海交通大学新生小助手。请基于资料、工具结果和用户身份回答问题。
+
+回答风格：
+- 自然、亲切、实用，像一个熟悉校园事务的人在帮忙。
+- 直接给建议，不要复述“你问的是……”。
+- 不要说“我查到了一段资料”“我在知识库中找到”“资料显示”等暴露内部检索过程的话。
+- 不要暴露工具调用、RAG、检索、prompt 等内部过程。
+- 使用资料后，只需在末尾提醒“具体安排以学校或学院最新通知为准”。
+- 如果资料不足，也请先给出稳妥的通用建议，再提醒以官方通知为准。
+
+内容要求：
+- 不要编造日期、地点、政策细节、费用、电话或联系人。
+- 如果工具结果里有 dining_tool 的食堂推荐，即使实时拥挤度或历史偏好暂未获取，也要基于工具给出的本地食堂知识库推荐明确回答。
+- 回答食堂问题时，请区分依据来源：有实时拥挤度就说明实时依据；没有实时拥挤度时说明“先按本地食堂知识库和已记录偏好推荐”。
+- 如果工具结果里有 parent_tool，请结合家长陪同报到清单给出家长视角建议。
+
+用户身份说明：
+{role_instruction(profile)}
+
+用户资料：
+{profile_text}
 
 历史对话：
 {history_text or "无"}
@@ -63,23 +122,24 @@ def build_prompt(question: str, contexts: list[dict], history: list = None, prof
 """
 
 
-def generate_answer(question: str, contexts: list[dict], history: list = None, profile = None,tool_results: list[dict] = None) -> tuple[str, bool]:
+def generate_answer(
+    question: str,
+    contexts: list[dict],
+    history: list = None,
+    profile=None,
+    tool_results: list[dict] = None,
+) -> tuple[str, bool]:
     if not OPENAI_API_KEY:
-        print("没有读取到 OPENAI_API_KE,使用本地回答")
-        return generate_fallback_answer(question, contexts), False
+        print("没有读取到 OPENAI_API_KEY，使用本地 fallback 回答")
+        return generate_fallback_answer(question, contexts, profile=profile), False
 
-    history = history or []
     prompt = build_prompt(
-    question=question,
-    contexts=contexts,
-    history=history,
-    profile=profile,
-    tool_results=tool_results,
+        question=question,
+        contexts=contexts,
+        history=history or [],
+        profile=profile,
+        tool_results=tool_results,
     )
-
-    print("准备调用大模型")
-    print("BASE_URL:", OPENAI_BASE_URL)
-    print("MODEL:", OPENAI_MODEL)
 
     try:
         response = httpx.post(
@@ -90,33 +150,17 @@ def generate_answer(question: str, contexts: list[dict], history: list = None, p
             },
             json={
                 "model": OPENAI_MODEL,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    }
-                ],
+                "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.3,
             },
             timeout=60,
         )
-
-        print("大模型返回状态码:", response.status_code)
-        print("大模型返回内容:", response.text)
-
         response.raise_for_status()
         data = response.json()
-
-        answer = data["choices"][0]["message"]["content"]
-        return answer, True
-
+        return data["choices"][0]["message"]["content"], True
     except Exception as error:
-        print("调用大模型失败:", repr(error))
-        return (
-            "我尝试调用大模型，但接口暂时没有成功返回。"
-            "请检查 OPENAI_BASE_URL、OPENAI_MODEL、API Key 或网络连接。",
-            False,
-        )
+        print("调用大模型失败", repr(error))
+        return generate_fallback_answer(question, contexts, profile=profile), False
 
 
 def extract_json_object(text: str) -> dict | None:
@@ -139,15 +183,12 @@ def extract_json_object(text: str) -> dict | None:
         return None
 
 
-def plan_tool_use(question: str, history: list = None, profile = None) -> dict | None:
+def plan_tool_use(question: str, history: list = None, profile=None) -> dict | None:
     if not OPENAI_API_KEY:
         return None
 
     history = history or []
-    history_text = "\n".join(
-        f"{item.role}:{item.content}"
-        for item in history[-8:]
-    )
+    history_text = "\n".join(f"{item.role}: {item.content}" for item in history[-8:])
     profile_text = profile.model_dump_json(exclude_none=True) if profile else "无"
 
     prompt = f"""
@@ -178,14 +219,14 @@ def plan_tool_use(question: str, history: list = None, profile = None) -> dict |
 }}
 
 判断规则：
-- “包图怎么走”“怎么去包图”“去图书馆”“从宿舍到电院”都应使用 walking_route。
+- “包图怎么走”“怎么去包图”“去图书馆”“从宿舍到电院”“开车送孩子去东一宿舍怎么走”都应使用 walking_route。
 - “包图在哪”“电院位置”“附近的校门”应使用 place_search。
 - 地点可以是简称、别名、口语说法；不要因为本地地点库可能没有就放弃工具。
 - 尽量把简称改写为上海交通大学常见规范名称，例如“包图”应规范化为“包玉刚图书馆”。
 - 如果用户没说校区但语境是上海交通大学本科新生，优先按“闵行校区”理解。
 - “去哪吃”“推荐食堂”“哪个食堂不挤”“三餐人多吗”应使用 dining_recommend。
 - “我去三餐吃了”“今天吃了哈乐”“我常去二餐”应使用 dining_record。
-- 如果不是地点或导航问题，action 用 "none"，tool 用 null。
+- 如果不是地点、导航或食堂问题，action 用 "none"，tool 用 null。
 
 历史对话：
 {history_text or "无"}
@@ -206,12 +247,7 @@ def plan_tool_use(question: str, history: list = None, profile = None) -> dict |
             },
             json={
                 "model": OPENAI_MODEL,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    }
-                ],
+                "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0,
             },
             timeout=20,
@@ -220,17 +256,15 @@ def plan_tool_use(question: str, history: list = None, profile = None) -> dict |
         data = response.json()
         content = data["choices"][0]["message"]["content"]
     except Exception as error:
-        print("工具规划调用大模型失败:", repr(error))
+        print("工具规划调用大模型失败", repr(error))
         return None
 
     plan = extract_json_object(content)
 
     if not isinstance(plan, dict):
         return None
-
     if plan.get("tool") not in {"campus_place_tool", "dining_tool"}:
         return None
-
     if plan.get("action") not in {
         "place_search",
         "walking_route",

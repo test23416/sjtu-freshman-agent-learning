@@ -1,9 +1,15 @@
 const STORAGE_KEY = "sjtu_freshman_chat_history";
 const DINING_PREFERENCES_KEY = "sjtu_freshman_dining_preferences";
 const LOCATION_STORAGE_KEY = "sjtu_freshman_last_location";
+const CHECKLIST_STORAGE_KEY = "sjtu_freshman_checklist_state";
 const config = window.APP_CONFIG || {};
 const API_BASE_URL = (config.API_BASE_URL || window.location.origin || "").replace(/\/$/, "");
 const ROUTE_WORDS = [
+  "怎么去",
+  "怎么到",
+  "怎么走",
+  "开车",
+  "接送",
   "怎么去",
   "怎么到",
   "怎么走",
@@ -30,6 +36,18 @@ function saveDiningPreferences() {
     DINING_PREFERENCES_KEY,
     JSON.stringify(diningPreferences),
   );
+}
+
+function loadChecklistState() {
+  try {
+    return JSON.parse(localStorage.getItem(CHECKLIST_STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function saveChecklistState(state) {
+  localStorage.setItem(CHECKLIST_STORAGE_KEY, JSON.stringify(state));
 }
 
 function recordDiningPreference(canteen) {
@@ -116,6 +134,7 @@ function describeLocationError(error) {
 }
 
 function getCurrentLocation() {
+  // 路线问题才会触发定位；失败时兜底使用最近一次成功定位。
   lastLocationError = "";
 
   if (!window.isSecureContext) {
@@ -219,11 +238,8 @@ function extractRoutePath(route) {
   return path;
 }
 
-async function showRouteOnMap(routeCardData) {
+async function showRouteOnMap(routeCardData, mapMount) {
   const AMap = await loadAmapScript();
-
-  const mapSection = document.getElementById("mapSection");
-  mapSection.hidden = false;
 
   const route = routeCardData.route;
   const path = extractRoutePath(route);
@@ -233,15 +249,33 @@ async function showRouteOnMap(routeCardData) {
     return;
   }
 
-  if (!campusMap) {
-    campusMap = new AMap.Map("campusMap", {
-      zoom: 17,
-      resizeEnable: true,
-      center: path[0],
-    });
+  if (campusMap && typeof campusMap.destroy === "function") {
+    campusMap.destroy();
   }
 
-  campusMap.clearMap();
+  mapMount.hidden = false;
+  mapMount.innerHTML = "";
+  mapMount.classList.remove("map-section-enter");
+
+  const header = document.createElement("div");
+  header.className = "map-header";
+  header.textContent = "校园路线地图";
+
+  const mapCanvas = document.createElement("div");
+  mapCanvas.className = "campus-map";
+
+  mapMount.appendChild(header);
+  mapMount.appendChild(mapCanvas);
+
+  requestAnimationFrame(() => {
+    mapMount.classList.add("map-section-enter");
+  });
+
+  campusMap = new AMap.Map(mapCanvas, {
+    zoom: 17,
+    resizeEnable: true,
+    center: path[0],
+  });
 
   const startMarker = new AMap.Marker({
     position: path[0],
@@ -280,6 +314,7 @@ const serverStatus = document.getElementById("serverStatus");
 
 function buildProfile() {
   return {
+    role: document.getElementById("roleSelect").value || "student",
     campus: document.getElementById("campus").value.trim() || null,
     college: document.getElementById("college").value.trim() || null,
     major: document.getElementById("major").value.trim() || null,
@@ -289,6 +324,100 @@ function buildProfile() {
 }
 
 //导航卡片
+function appendThinkingMessage() {
+  const message = document.createElement("div");
+  message.className = "message assistant thinking-message";
+  message.setAttribute("aria-live", "polite");
+
+  const roleBox = document.createElement("div");
+  roleBox.className = "message-role";
+  roleBox.textContent = "助手正在思考";
+
+  const dots = document.createElement("div");
+  dots.className = "thinking-dots";
+  dots.setAttribute("aria-label", "助手正在思考");
+
+  for (let index = 0; index < 3; index += 1) {
+    const dot = document.createElement("span");
+    dots.appendChild(dot);
+  }
+
+  message.appendChild(roleBox);
+  message.appendChild(dots);
+  chatLog.appendChild(message);
+  message.scrollIntoView({ behavior: "smooth", block: "end" });
+
+  return message;
+}
+
+function removeThinkingMessage(message) {
+  if (message && message.parentNode) {
+    message.remove();
+  }
+}
+
+function showInlineMapStatus(mapMount, text, className = "card-warning") {
+  mapMount.hidden = false;
+  mapMount.innerHTML = "";
+
+  const status = document.createElement("div");
+  status.className = className;
+  status.textContent = text;
+  mapMount.appendChild(status);
+}
+
+async function showDiningRoute(canteen, mapMount, button) {
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "正在规划路线...";
+  showInlineMapStatus(mapMount, "正在获取当前位置并规划路线...", "card-meta");
+
+  try {
+    const location = await getCurrentLocation();
+
+    if (!location) {
+      showInlineMapStatus(
+        mapMount,
+        lastLocationError || "暂时没有获取到当前位置，无法生成食堂导航。",
+      );
+      return;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: `怎么去${canteen.name}`,
+        history: chatHistory,
+        profile: buildProfile(),
+        location: location,
+        dining_preferences: diningPreferences,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`后端返回错误：${response.status}`);
+    }
+
+    const data = await response.json();
+    const routeCard = (data.cards || []).find((card) => card.type === "route");
+
+    if (!routeCard || !routeCard.data || !routeCard.data.route) {
+      showInlineMapStatus(mapMount, "已识别食堂，但暂时没有获取到可绘制的路线。");
+      return;
+    }
+
+    await showRouteOnMap(routeCard.data, mapMount);
+  } catch (error) {
+    showInlineMapStatus(mapMount, `路线规划失败：${error.message}`);
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
 function renderCards(cards, container) {
   if (!cards || cards.length === 0) {
     return;
@@ -389,11 +518,16 @@ function renderCards(cards, container) {
         mapButton.className = "card-map-button";
         mapButton.textContent = "在地图上显示路线";
 
+        const inlineMap = document.createElement("div");
+        inlineMap.className = "map-section inline-map-section";
+        inlineMap.hidden = true;
+
         mapButton.addEventListener("click", () => {
-          showRouteOnMap(data);
+          showRouteOnMap(data, inlineMap);
         });
 
         item.appendChild(mapButton);
+        item.appendChild(inlineMap);
 
         if (route.steps && route.steps.length > 0) {
           const details = document.createElement("details");
@@ -430,6 +564,137 @@ function renderCards(cards, container) {
         link.rel = "noopener noreferrer";
         link.textContent = "打开高德导航";
         item.appendChild(link);
+      }
+
+      cardsBox.appendChild(item);
+    }
+
+    if (card.type === "calendar") {
+      const data = card.data || {};
+
+      const calendarUrl = data.calendar_url || data.pdf_url;
+      const item = document.createElement(calendarUrl ? "a" : "div");
+      item.className = "card-item calendar-card";
+
+      if (calendarUrl) {
+        item.href = calendarUrl;
+        item.target = "_blank";
+        item.rel = "noopener noreferrer";
+      }
+
+      const title = document.createElement("div");
+      title.className = "card-title";
+      title.textContent = card.title || data.title || "上海交通大学校历";
+
+      const description = document.createElement("div");
+      description.className = "card-description";
+      description.textContent =
+        data.description || "查看上海交通大学教务处发布的校历。";
+
+      const meta = document.createElement("div");
+      meta.className = "card-meta";
+      meta.textContent = `${data.academic_year || "当前学年"} | ${
+        data.auto_updated ? "已从官网自动获取" : "使用本地备用链接"
+      }`;
+
+      const url = document.createElement("div");
+      url.className = "calendar-url";
+      url.textContent = calendarUrl || "暂无校历链接";
+
+      item.appendChild(title);
+      item.appendChild(description);
+      item.appendChild(meta);
+      item.appendChild(url);
+
+      if (calendarUrl) {
+        const pdfCta = document.createElement("div");
+        pdfCta.className = "card-link card-action-link calendar-primary-action";
+        pdfCta.textContent = "打开校历";
+        item.appendChild(pdfCta);
+      }
+
+      if (data.source_url) {
+        const sourceLink = document.createElement("a");
+        sourceLink.className = "card-link card-action-link";
+        sourceLink.href = data.source_url;
+        sourceLink.target = "_blank";
+        sourceLink.rel = "noopener noreferrer";
+        sourceLink.textContent = "查看官网来源";
+        sourceLink.addEventListener("click", (event) => {
+          event.stopPropagation();
+        });
+        item.appendChild(sourceLink);
+      }
+
+      cardsBox.appendChild(item);
+    }
+
+    if (card.type === "checklist" || card.type === "parent_checklist") {
+      const data = card.data || {};
+      const checklistState = loadChecklistState();
+
+      const item = document.createElement("div");
+      item.className = `card-item checklist-card ${card.type === "parent_checklist" ? "parent-checklist-card" : ""}`;
+
+      const title = document.createElement("div");
+      title.className = "card-title";
+      title.textContent = card.title || data.title || "新生入学准备清单";
+      item.appendChild(title);
+
+      if (data.description) {
+        const description = document.createElement("div");
+        description.className = "card-description";
+        description.textContent = data.description;
+        item.appendChild(description);
+      }
+
+      (data.groups || []).forEach((group) => {
+        const groupBox = document.createElement("div");
+        groupBox.className = "checklist-group";
+
+        const groupTitle = document.createElement("div");
+        groupTitle.className = "checklist-group-title";
+        groupTitle.textContent = group.title || "未分组";
+        groupBox.appendChild(groupTitle);
+
+        (group.items || []).forEach((entry) => {
+          const row = document.createElement("label");
+          row.className = "checklist-item";
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = Boolean(checklistState[entry.id]);
+
+          const text = document.createElement("span");
+          text.className = "checklist-text";
+          text.textContent = entry.text || "";
+
+          const priority = document.createElement("span");
+          priority.className = `checklist-priority priority-${entry.priority || "medium"}`;
+          priority.textContent = entry.priority || "medium";
+
+          checkbox.addEventListener("change", () => {
+            const nextState = loadChecklistState();
+            nextState[entry.id] = checkbox.checked;
+            saveChecklistState(nextState);
+            row.classList.toggle("is-checked", checkbox.checked);
+          });
+
+          row.classList.toggle("is-checked", checkbox.checked);
+          row.appendChild(checkbox);
+          row.appendChild(text);
+          row.appendChild(priority);
+          groupBox.appendChild(row);
+        });
+
+        item.appendChild(groupBox);
+      });
+
+      if (!data.groups || data.groups.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "card-warning";
+        empty.textContent = data.error || "暂时没有可显示的 checklist。";
+        item.appendChild(empty);
       }
 
       cardsBox.appendChild(item);
@@ -477,17 +742,21 @@ function renderCards(cards, container) {
         const button = document.createElement("button");
         button.type = "button";
         button.className = "card-map-button";
-        button.textContent = "我去这里吃了";
+        button.textContent = "导航到这里";
+
+        const inlineMap = document.createElement("div");
+        inlineMap.className = "map-section inline-map-section";
+        inlineMap.hidden = true;
+
         button.addEventListener("click", () => {
-          recordDiningPreference(canteen);
-          button.disabled = true;
-          button.textContent = "已记录";
+          showDiningRoute(canteen, inlineMap, button);
         });
 
         row.appendChild(rowTitle);
         row.appendChild(meta);
         row.appendChild(description);
         row.appendChild(button);
+        row.appendChild(inlineMap);
         item.appendChild(row);
       });
 
@@ -558,42 +827,6 @@ function appendMessage(
 
     renderCards(cards, message);
 
-    const sourcesBox = document.createElement("div");
-    sourcesBox.className = "sources";
-
-    if (sources.length > 0) {
-      const title = document.createElement("div");
-      title.className = "message-role";
-      title.textContent = "参考来源";
-      sourcesBox.appendChild(title);
-
-      sources.forEach((source) => {
-        const item = document.createElement("div");
-        item.className = "source";
-
-        const header = document.createElement("button");
-        header.className = "source-toggle";
-        header.type = "button";
-        header.textContent = `▶ ${source.title} | ${source.source} | 相关度：${source.score}`;
-
-        const content = document.createElement("div");
-        content.className = "source-content";
-        content.textContent = source.content;
-        content.style.display = "none";
-
-        header.addEventListener("click", () => {
-          const isHidden = content.style.display === "none";
-          content.style.display = isHidden ? "block" : "none";
-          header.textContent = `${isHidden ? "▼" : "▶"} ${source.title} | ${source.source} | 相关度：${source.score}`;
-        });
-
-        item.appendChild(header);
-        item.appendChild(content);
-        sourcesBox.appendChild(item);
-      });
-    }
-
-    message.appendChild(sourcesBox);
   }
 
   chatLog.appendChild(message);
@@ -614,8 +847,10 @@ async function sendMessage() {
   sendButton.disabled = true;
   sendButton.textContent = "思考中...";
   errorBox.textContent = "";
+  const thinkingMessage = appendThinkingMessage();
 
   try {
+    // Send client-side context so the agent can use history, profile, location, and dining preferences.
     const needsLocation = isRouteQuestion(message);
     const location = needsLocation ? await getCurrentLocation() : null;
 
@@ -645,6 +880,7 @@ async function sendMessage() {
 
     const data = await response.json();
     console.log("chat response:", data);
+    removeThinkingMessage(thinkingMessage);
     appendMessage(
       "assistant",
       data.answer,
@@ -665,6 +901,7 @@ async function sendMessage() {
 
     saveHistory();
   } catch (error) {
+    removeThinkingMessage(thinkingMessage);
     errorBox.textContent = "请求失败：" + error.message;
   } finally {
     sendButton.disabled = false;
@@ -718,15 +955,11 @@ clearButton.addEventListener("click", () => {
 });
 //清空地图标签
 function clearMapView() {
-  const mapSection = document.getElementById("mapSection");
-
-  if (campusMap) {
-    campusMap.clearMap();
+  if (campusMap && typeof campusMap.destroy === "function") {
+    campusMap.destroy();
   }
 
-  if (mapSection) {
-    mapSection.hidden = true;
-  }
+  campusMap = null;
 }
 //按键回车直接发送
 messageInput.addEventListener("keydown", (event) => {

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <title>交大新生助手</title>
-    <link rel="stylesheet" href="./style.css" />
+    <link rel="stylesheet" href="./style.css?v=20260715-parent-mode" />
   </head>
   <body>
     <main class="app-shell">
@@ -21,6 +21,14 @@
             <h2>个人信息</h2>
             <p>用于路线、食堂和入学事项的个性化推荐。</p>
           </div>
+
+          <label>
+            <span>身份</span>
+            <select id="roleSelect">
+              <option value="student">新生</option>
+              <option value="parent">家长</option>
+            </select>
+          </label>
 
           <label>
             <span>校区</span>
@@ -43,18 +51,10 @@
             <button type="button" class="prompt-chip" data-prompt="包图怎么走">
               包图怎么走
             </button>
-            <button
-              type="button"
-              class="prompt-chip"
-              data-prompt="推荐一个现在不太挤的食堂"
-            >
+            <button type="button" class="prompt-chip" data-prompt="推荐一个现在不太挤的食堂">
               推荐食堂
             </button>
-            <button
-              type="button"
-              class="prompt-chip"
-              data-prompt="新生入学前要准备什么？"
-            >
+            <button type="button" class="prompt-chip" data-prompt="新生入学前要准备什么？">
               入学准备
             </button>
           </div>
@@ -63,15 +63,10 @@
         <section class="chat-panel" aria-label="聊天">
           <div id="chatLog" class="chat-log"></div>
 
-          <section id="mapSection" class="map-section" hidden>
-            <div class="map-header">校园路线地图</div>
-            <div id="campusMap" class="campus-map"></div>
-          </section>
-
           <div class="composer">
             <textarea
               id="message"
-              placeholder="问问入学准备、校园路线、食堂推荐、政策材料..."
+              placeholder="问问入学准备、家长陪同、校园路线、食堂推荐、政策材料..."
             ></textarea>
             <div class="composer-actions">
               <div id="error" class="error"></div>
@@ -88,6 +83,6 @@
     </main>
 
     <script src="./config.js"></script>
-    <script src="./app.js"></script>
+    <script src="./app.js?v=20260715-parent-mode"></script>
   </body>
 </html>

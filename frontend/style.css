@@ -33,12 +33,19 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
 
 button {
   border: 0;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.12s ease;
 }
 
 .app-shell {
@@ -150,6 +157,7 @@ label span {
 }
 
 input,
+select,
 textarea {
   width: 100%;
   border: 1px solid var(--line);
@@ -160,10 +168,16 @@ textarea {
   transition:
     border-color 0.16s ease,
     box-shadow 0.16s ease,
-    background 0.16s ease;
+    background 0.16s ease,
+    transform 0.12s ease;
 }
 
 input {
+  height: 40px;
+  padding: 0 12px;
+}
+
+select {
   height: 40px;
   padding: 0 12px;
 }
@@ -177,9 +191,23 @@ textarea {
 }
 
 input:focus,
+select:focus,
 textarea:focus {
   border-color: rgba(31, 111, 235, 0.65);
   box-shadow: 0 0 0 4px rgba(31, 111, 235, 0.12);
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: rgba(31, 111, 235, 0.38);
+  background: #fbfdff;
+}
+
+input:active,
+select:active,
+textarea:active {
+  transform: translateY(1px);
 }
 
 .quick-prompts {
@@ -201,6 +229,8 @@ textarea:focus {
 .prompt-chip:hover {
   border-color: rgba(31, 111, 235, 0.42);
   color: var(--primary);
+  box-shadow: 0 8px 18px rgba(31, 111, 235, 0.1);
+  transform: translateY(-1px);
 }
 
 .chat-panel {
@@ -239,6 +269,7 @@ textarea:focus {
   line-height: 1.7;
   white-space: pre-wrap;
   box-shadow: 0 8px 24px rgba(22, 32, 51, 0.06);
+  animation: enter-message 0.22s ease-out both;
 }
 
 .message.user {
@@ -251,6 +282,34 @@ textarea:focus {
   margin-right: auto;
   border: 1px solid var(--line);
   background: var(--surface);
+}
+
+.thinking-message {
+  min-width: 180px;
+}
+
+.thinking-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 20px;
+}
+
+.thinking-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--primary);
+  opacity: 0.35;
+  animation: thinking-dot 1s ease-in-out infinite;
+}
+
+.thinking-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.thinking-dots span:nth-child(3) {
+  animation-delay: 0.3s;
 }
 
 .message-role {
@@ -305,12 +364,16 @@ textarea:focus {
 .primary-button:hover,
 .card-map-button:hover {
   background: var(--primary-dark);
+  box-shadow: 0 10px 22px rgba(31, 111, 235, 0.22);
+  transform: translateY(-1px);
 }
 
 .primary-button:disabled,
 .card-map-button:disabled {
   cursor: not-allowed;
   opacity: 0.64;
+  transform: none;
+  box-shadow: none;
 }
 
 .secondary-button {
@@ -322,6 +385,23 @@ textarea:focus {
 .secondary-button:hover {
   border-color: rgba(31, 111, 235, 0.35);
   color: var(--primary);
+  box-shadow: 0 8px 18px rgba(22, 32, 51, 0.08);
+  transform: translateY(-1px);
+}
+
+.primary-button:active,
+.secondary-button:active,
+.card-map-button:active,
+.prompt-chip:active {
+  transform: translateY(1px);
+}
+
+.primary-button:focus-visible,
+.secondary-button:focus-visible,
+.card-map-button:focus-visible,
+.prompt-chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(31, 111, 235, 0.16);
 }
 
 .error {
@@ -345,11 +425,13 @@ textarea:focus {
 
 .card-item {
   padding: 12px;
+  animation: enter-card 0.24s ease-out both;
 }
 
 .source {
   margin-top: 8px;
   padding: 10px;
+  animation: enter-card 0.24s ease-out both;
 }
 
 .card-title,
@@ -375,9 +457,126 @@ textarea:focus {
   align-items: center;
   min-height: 34px;
   margin-top: 8px;
+  margin-right: 10px;
   color: var(--primary);
   font-weight: 700;
   text-decoration: none;
+}
+
+.card-action-link {
+  padding: 0 10px;
+  border: 1px solid rgba(31, 111, 235, 0.24);
+  border-radius: var(--radius);
+  background: rgba(31, 111, 235, 0.06);
+}
+
+.calendar-card {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.calendar-card:hover {
+  border-color: rgba(31, 111, 235, 0.42);
+  box-shadow: 0 12px 28px rgba(31, 111, 235, 0.12);
+  transform: translateY(-1px);
+}
+
+.calendar-url {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: rgba(22, 32, 51, 0.04);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.calendar-primary-action {
+  color: var(--primary);
+}
+
+.checklist-card {
+  display: grid;
+  gap: 12px;
+}
+
+.parent-checklist-card {
+  border-color: rgba(15, 159, 143, 0.28);
+  background: rgba(236, 253, 245, 0.45);
+}
+
+.checklist-group {
+  display: grid;
+  gap: 8px;
+}
+
+.checklist-group-title {
+  font-weight: 800;
+  color: #344054;
+}
+
+.checklist-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(216, 222, 232, 0.9);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    transform 0.12s ease;
+}
+
+.checklist-item:hover {
+  border-color: rgba(31, 111, 235, 0.3);
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+.checklist-item input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+}
+
+.checklist-text {
+  line-height: 1.55;
+}
+
+.checklist-item.is-checked .checklist-text {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.checklist-priority {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(102, 112, 133, 0.12);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.priority-high {
+  background: rgba(194, 65, 53, 0.12);
+  color: var(--danger);
+}
+
+.priority-medium {
+  background: rgba(161, 92, 7, 0.12);
+  color: var(--warning);
+}
+
+.priority-low {
+  background: rgba(15, 159, 143, 0.12);
+  color: #047857;
 }
 
 .card-link:hover {
@@ -390,26 +589,20 @@ textarea:focus {
   font-size: 14px;
 }
 
-.sources {
-  margin-top: 12px;
-}
-
-.source-toggle {
-  width: 100%;
-  border: none;
-  background: transparent;
-  color: #344054;
-  cursor: pointer;
-  padding: 0;
-  text-align: left;
-}
-
 .map-section {
-  margin: 0 20px 18px;
+  margin: 12px 0 0;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
+}
+
+.inline-map-section {
+  width: 100%;
+}
+
+.map-section-enter {
+  animation: enter-map 0.26s ease-out both;
 }
 
 .map-header {
@@ -419,9 +612,70 @@ textarea:focus {
 
 .campus-map {
   width: 100%;
-  height: 420px;
+  height: 340px;
   border-radius: var(--radius);
   overflow: hidden;
+}
+
+@keyframes enter-message {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes enter-card {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes enter-map {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.995);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes thinking-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+
+  40% {
+    opacity: 1;
+    transform: translateY(-5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
 @media (max-width: 860px) {

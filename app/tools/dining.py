@@ -64,6 +64,7 @@ DEFAULT_CAMPUSLIFE_URLS = [
 
 
 def load_canteens() -> list[dict[str, Any]]:
+    # 本地食堂库提供位置、别名、特色等静态信息，实时拥挤度运行时再合并。
     if not CANTEENS_PATH.exists():
         return []
 
@@ -180,6 +181,7 @@ def is_preference_record(question: str) -> bool:
 
 
 def fetch_json(url: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    # campuslife 接口不稳定时直接返回 None，推荐逻辑会退回本地知识库。
     try:
         response = httpx.get(
             url,

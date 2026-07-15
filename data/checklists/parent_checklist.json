@@ -1,0 +1,93 @@
+{
+  "title": "家长陪同报到清单",
+  "description": "这份清单面向陪同新生报到的家长，具体安排请以学校和学院最新通知为准。",
+  "updated_at": "2026-07-15",
+  "source": "本地维护资料",
+  "groups": [
+    {
+      "title": "到校前",
+      "items": [
+        {
+          "id": "parent-before-documents",
+          "text": "确认孩子身份证、录取通知书等报到材料已带齐。",
+          "priority": "high"
+        },
+        {
+          "id": "parent-before-payment",
+          "text": "确认学费、住宿费等缴纳状态，并只通过学校官方渠道核实。",
+          "priority": "high"
+        },
+        {
+          "id": "parent-before-route",
+          "text": "提前查看校区入口、停车或公共交通路线，关注当年迎新交通通知。",
+          "priority": "medium"
+        },
+        {
+          "id": "parent-before-fraud",
+          "text": "提醒孩子警惕陌生链接、私人收款码、验证码索取和转账要求。",
+          "priority": "high"
+        }
+      ]
+    },
+    {
+      "title": "报到当天",
+      "items": [
+        {
+          "id": "parent-arrival-checkin",
+          "text": "协助孩子找到报到点，但尽量让孩子亲自完成身份核验和学院沟通。",
+          "priority": "medium"
+        },
+        {
+          "id": "parent-arrival-dorm",
+          "text": "协助完成宿舍入住和行李安置，检查基础设施是否正常。",
+          "priority": "medium"
+        },
+        {
+          "id": "parent-arrival-contacts",
+          "text": "保存学院、辅导员、宿管等官方联系方式，避免依赖非官方群消息。",
+          "priority": "high"
+        }
+      ]
+    },
+    {
+      "title": "离校前确认",
+      "items": [
+        {
+          "id": "parent-leave-schedule",
+          "text": "确认孩子知道近期班会、体检、军训或入学教育等安排。",
+          "priority": "medium"
+        },
+        {
+          "id": "parent-leave-services",
+          "text": "确认孩子会使用校园卡、门禁、网络、食堂、快递和校医院等基础服务。",
+          "priority": "medium"
+        },
+        {
+          "id": "parent-leave-independence",
+          "text": "和孩子约定联系频率，鼓励其独立处理校园事务并主动求助。",
+          "priority": "low"
+        }
+      ]
+    },
+    {
+      "title": "开学后一周",
+      "items": [
+        {
+          "id": "parent-week-adaptation",
+          "text": "关注孩子入学后一周的作息、情绪和社交适应情况。",
+          "priority": "medium"
+        },
+        {
+          "id": "parent-week-academic",
+          "text": "提醒孩子主动查看课表、学院通知和学校系统，而不是替孩子代办。",
+          "priority": "medium"
+        },
+        {
+          "id": "parent-week-support",
+          "text": "如发现持续焦虑、身体不适或生活困难，鼓励孩子联系学院和学校官方支持资源。",
+          "priority": "high"
+        }
+      ]
+    }
+  ]
+}

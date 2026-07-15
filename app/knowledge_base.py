@@ -98,6 +98,7 @@ class KnowledgeBase:
 
 
 def split_markdown(path: Path, text: str) -> list[DocumentChunk]:
+    # 按 Markdown 标题切块，避免整本手册作为一个超长上下文喂给模型。
     matches = list(_HEADING_RE.finditer(text))
 
     if not matches:
@@ -129,6 +130,7 @@ def make_chunk(title: str, source: str, content: str) -> DocumentChunk:
 
 
 def tokenize(text: str) -> set[str]:
+    # 中文按单字、二字、三字短语混合切分，兼顾简单实现和校园名词匹配。
     text = text.lower()
 
     terms = set(_ASCII_WORD_RE.findall(text))

@@ -14,8 +14,9 @@ from app.tools.amap import (
 
 
 PLACES_PATH = Path("data/places/campus_places.json")
+DINING_PATH = Path("data/dining/canteens.json")
 
-ROUTE_WORDS = ["怎么去", "怎么到", "路线", "导航", "走到", "到哪里", "去哪里", "去", "到", "从"]
+ROUTE_WORDS = ["怎么去", "怎么到", "怎么走", "路线", "导航", "走到", "到哪里", "去哪里", "开车", "接送", "去", "到", "从"]
 PLACE_WORDS = ["在哪里", "在哪", "位置", "怎么去", "怎么到", "路线", "导航", "附近"]
 
 
@@ -69,11 +70,62 @@ def build_keyword_place(query: str, poi: dict[str, Any]) -> dict[str, Any]:
 
 
 def load_places() -> list[dict[str, Any]]:
+    places = []
+
     if not PLACES_PATH.exists():
-        return []
+        return load_dining_places()
 
     with PLACES_PATH.open("r", encoding="utf-8") as file:
-        return json.load(file)
+        places = json.load(file)
+
+    return places + load_dining_places()
+
+
+def load_dining_places() -> list[dict[str, Any]]:
+    if not DINING_PATH.exists():
+        return []
+
+    with DINING_PATH.open("r", encoding="utf-8") as file:
+        data = json.load(file)
+
+    canteens = data.get("canteens", []) if isinstance(data, dict) else data
+    places = []
+
+    for canteen in canteens:
+        if not isinstance(canteen, dict) or canteen.get("is_drink_only"):
+            continue
+
+        canteen_id = canteen.get("id")
+        aliases = list(canteen.get("aliases", []))
+        aliases.extend(
+            {
+                100: ["一餐", "第一餐厅", "第一食堂"],
+                200: ["二餐", "第二餐厅", "第二食堂"],
+                300: ["三餐", "第三餐厅", "第三食堂"],
+                400: ["四餐", "第四餐厅", "第四食堂"],
+                500: ["五餐", "第五餐厅", "第五食堂"],
+                600: ["六餐", "第六餐厅", "第六食堂"],
+                700: ["七餐", "第七餐厅", "第七食堂"],
+                800: ["哈乐", "哈乐餐厅", "清真餐厅"],
+                900: ["玉兰苑"],
+            }.get(canteen_id, [])
+        )
+
+        places.append(
+            {
+                "id": f"dining:{canteen_id}",
+                "name": canteen.get("name"),
+                "aliases": [alias for alias in aliases if alias],
+                "campus": canteen.get("campus"),
+                "category": "食堂",
+                "lng": canteen.get("lng"),
+                "lat": canteen.get("lat"),
+                "description": canteen.get("location_desc") or canteen.get("description", ""),
+                "tags": ["食堂", "餐饮", "吃饭"],
+            }
+        )
+
+    return places
 
 
 def has_coordinate(place: dict[str, Any]) -> bool:
@@ -149,6 +201,7 @@ def score_poi_candidate(
     preferred_names: list[str] | None = None,
     campus_hint: str | None = None,
 ) -> int:
+    # 高德可能返回多个同名 POI；用 LLM 规范名、校区和地点类型一起给候选排序。
     preferred_names = [name for name in (preferred_names or []) if name]
     name = poi.get("name") or ""
     address = poi.get("address") or ""

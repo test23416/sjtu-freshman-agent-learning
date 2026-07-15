@@ -2,11 +2,12 @@ from pydantic import BaseModel,Field
 from typing import Literal,Any
 
 class StudentProfile(BaseModel):
+    role: Literal["student", "parent"] = "student"
     campus:str | None = None
     college:str | None = None
     major:str | None = None
     dorm_area:str | None = None
-    international_student:bool | None = None
+    international_student:bool = False
 
 class UserLocation(BaseModel):
     lng: float
