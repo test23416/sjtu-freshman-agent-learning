@@ -1,0 +1,146 @@
+<view class="page">
+  <view class="settings">
+    <view class="field">
+      <text class="label">后端 API</text>
+      <input class="input" value="{{apiBaseUrl}}" bindinput="onApiInput" placeholder="http://127.0.0.1:8000" />
+    </view>
+
+    <view class="profile-grid">
+      <view class="field">
+        <text class="label">身份</text>
+        <picker range="{{roleOptions}}" value="{{roleIndex}}" bindchange="onRoleChange">
+          <view class="picker">{{roleOptions[roleIndex]}}</view>
+        </picker>
+      </view>
+      <view class="field">
+        <text class="label">校区</text>
+        <input class="input" data-key="campus" value="{{profile.campus}}" bindinput="onProfileInput" placeholder="闵行校区" />
+      </view>
+      <view class="field">
+        <text class="label">学院</text>
+        <input class="input" data-key="college" value="{{profile.college}}" bindinput="onProfileInput" placeholder="学院" />
+      </view>
+      <view class="field">
+        <text class="label">宿舍</text>
+        <input class="input" data-key="dorm_area" value="{{profile.dorm_area}}" bindinput="onProfileInput" placeholder="东区" />
+      </view>
+    </view>
+
+    <view class="location-row">
+      <button size="mini" class="secondary small" loading="{{locating}}" disabled="{{locating}}" bindtap="locateMe">
+        {{currentLocation ? '已定位，重新定位' : '点击定位'}}
+      </button>
+      <text class="location-text">{{currentLocation ? '导航会使用当前位置作为起点' : '食堂导航和路线问题需要定位'}}</text>
+    </view>
+  </view>
+
+  <scroll-view class="chat" scroll-y enhanced>
+    <view wx:if="{{messages.length === 0}}" class="empty">
+      可以问入学准备、家长陪同、校园路线、食堂推荐或校历安排。
+    </view>
+
+    <block wx:for="{{messages}}" wx:key="id">
+      <view class="message {{item.role}}">
+        <view class="role">{{item.role === 'user' ? '你' : '新生助手'}}</view>
+        <view class="content {{item.thinking ? 'thinking' : ''}}">{{item.content}}</view>
+
+        <view wx:if="{{item.cards && item.cards.length}}" class="cards">
+          <block wx:for="{{item.cards}}" wx:for-item="card" wx:for-index="cardIndex" wx:key="cardIndex">
+            <view class="card">
+              <view class="card-title">{{card.title || card.data.title || '结果卡片'}}</view>
+
+              <view wx:if="{{card.type === 'calendar'}}">
+                <view class="desc">{{card.data.description}}</view>
+                <view class="meta">{{card.data.school_year || card.data.academic_year}} {{card.data.semester}}</view>
+                <view class="url">{{card.data.display_url}}</view>
+                <button size="mini" class="link-button" data-text="{{card.data.display_url}}" bindtap="copyText">复制校历链接</button>
+                <button wx:if="{{card.data.source_url}}" size="mini" class="link-button ghost" data-text="{{card.data.source_url}}" bindtap="copyText">复制官网来源</button>
+              </view>
+
+              <view wx:elif="{{card.type === 'checklist' || card.type === 'parent_checklist'}}">
+                <view class="desc">{{card.data.description}}</view>
+                <block wx:for="{{card.data.groups}}" wx:for-item="group" wx:key="title">
+                  <view class="group">
+                    <view class="group-title">{{group.title}}</view>
+                    <block wx:for="{{group.items}}" wx:for-item="entry" wx:key="id">
+                      <view class="check-row {{entry.checked ? 'checked' : ''}}" data-id="{{entry.id}}" bindtap="toggleChecklistItem">
+                        <view class="box">{{entry.checked ? '✓' : ''}}</view>
+                        <view class="check-text">{{entry.text}}</view>
+                        <view class="priority {{entry.priority}}">{{entry.priority}}</view>
+                      </view>
+                    </block>
+                  </view>
+                </block>
+              </view>
+
+              <view wx:elif="{{card.type === 'place'}}">
+                <view class="desc">{{card.data.place.description || '暂无地点说明'}}</view>
+                <view class="meta">{{card.data.place.campus || '未知校区'}} · {{card.data.place.category || '地点'}}</view>
+                <button wx:if="{{card.data.map_url}}" size="mini" class="link-button" data-text="{{card.data.map_url}}" bindtap="copyText">复制地图链接</button>
+              </view>
+
+              <view wx:elif="{{card.type === 'route'}}">
+                <map
+                  wx:if="{{card.data.route_map && card.data.route_map.can_draw}}"
+                  class="route-map"
+                  latitude="{{card.data.route_map.latitude}}"
+                  longitude="{{card.data.route_map.longitude}}"
+                  markers="{{card.data.route_map.markers}}"
+                  polyline="{{card.data.route_map.polyline}}"
+                  scale="17"
+                  show-location
+                ></map>
+                <view wx:elif="{{card.data.route_map && !card.data.route_map.can_draw}}" class="card-warning">
+                  {{card.data.route_map.message}}
+                </view>
+                <view wx:if="{{card.data.route}}" class="desc">
+                  步行约 {{card.data.route.distance}} 米，预计 {{card.data.duration_minutes}} 分钟。
+                </view>
+                <view wx:else class="desc">已识别路线意图，但暂时没有可绘制的路线。</view>
+                <view class="meta">
+                  {{card.data.from ? card.data.from.name : '当前位置/待确认'}} → {{card.data.to ? card.data.to.name : '目的地待确认'}}
+                </view>
+                <button wx:if="{{card.data.navigation_url}}" size="mini" class="link-button" data-text="{{card.data.navigation_url}}" bindtap="copyText">复制导航链接</button>
+                <view wx:if="{{card.data.route && card.data.route.steps && card.data.route.steps.length}}" class="steps">
+                  <block wx:for="{{card.data.route.steps}}" wx:for-item="step" wx:key="index">
+                    <view wx:if="{{index < 5}}" class="step">{{index + 1}}. {{step.instruction}}</view>
+                  </block>
+                </view>
+              </view>
+
+              <view wx:elif="{{card.type === 'dining' || card.type === 'food_recommendation'}}">
+                <block wx:for="{{card.data.recommendations}}" wx:for-item="rec" wx:key="index">
+                  <view class="dining-row">
+                    <view class="source-title">{{index + 1}}. {{rec.canteen.name}}</view>
+                    <view class="meta">
+                      {{rec.canteen.campus}} · 拥挤度：{{rec.crowd ? rec.crowd.crowd_text : '暂未获取'}}
+                      <text wx:if="{{rec.canteen.distance_text}}"> · 距离：{{rec.canteen.distance_text}}</text>
+                    </view>
+                    <view class="desc">{{rec.display_reason || rec.canteen.description || rec.canteen.location_desc}}</view>
+                    <view class="button-line">
+                      <button wx:if="{{rec.canteen.map_url}}" size="mini" class="link-button ghost" data-text="{{rec.canteen.map_url}}" bindtap="copyText">复制地图链接</button>
+                      <button size="mini" class="link-button" data-name="{{rec.canteen.name}}" bindtap="navigateToDining">导航过去</button>
+                    </view>
+                  </view>
+                </block>
+              </view>
+
+              <view wx:else>
+                <view class="desc">这个卡片类型暂时只做基础展示。</view>
+              </view>
+            </view>
+          </block>
+        </view>
+      </view>
+    </block>
+  </scroll-view>
+
+  <view class="composer">
+    <view wx:if="{{error}}" class="error">{{error}}</view>
+    <textarea class="textarea" value="{{inputText}}" bindinput="onInput" placeholder="输入问题..." auto-height maxlength="800" />
+    <view class="actions">
+      <button class="secondary" bindtap="clearChat">清空</button>
+      <button class="primary" loading="{{sending}}" disabled="{{sending}}" bindtap="sendMessage">发送</button>
+    </view>
+  </view>
+</view>

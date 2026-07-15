@@ -1,0 +1,9 @@
+{
+  "desc": "SJTU freshman assistant miniprogram sitemap",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "*"
+    }
+  ]
+}
