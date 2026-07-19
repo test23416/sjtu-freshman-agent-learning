@@ -26,3 +26,12 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "deepseek-chat")
 AMAP_WEB_SERVICE_KEY = os.getenv("AMAP_WEB_SERVICE_KEY", "")
 CAMPUSLIFE_DINING_URL = os.getenv("CAMPUSLIFE_DINING_URL", "")
 
+
+FEISHU_APP_ID = os.getenv("FEISHU_APP_ID", "")
+FEISHU_APP_SECRET = os.getenv("FEISHU_APP_SECRET", "")
+FEISHU_VERIFICATION_TOKEN = os.getenv("FEISHU_VERIFICATION_TOKEN", "")
+FEISHU_OPEN_API_BASE_URL = os.getenv(
+    "FEISHU_OPEN_API_BASE_URL",
+    "https://open.feishu.cn/open-apis",
+)
+
