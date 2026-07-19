@@ -43,12 +43,14 @@ def _fallback_parent_checklist(error: str | None = None) -> dict[str, Any]:
 
 def load_parent_checklist() -> dict[str, Any]:
     if not PARENT_CHECKLIST_PATH.exists():
+        print("家长 checklist 配置不存在:", PARENT_CHECKLIST_PATH.as_posix())
         return _fallback_parent_checklist(f"未找到 {PARENT_CHECKLIST_PATH.as_posix()}")
 
     try:
         with PARENT_CHECKLIST_PATH.open("r", encoding="utf-8") as file:
             data = json.load(file)
     except (OSError, json.JSONDecodeError) as error:
+        print("读取家长 checklist 配置失败:", repr(error))
         return _fallback_parent_checklist(f"读取家长 checklist 失败：{error}")
 
     if not isinstance(data, dict) or not isinstance(data.get("groups"), list):
@@ -65,6 +67,17 @@ def run_parent_tools(
         return {"tool_results": [], "cards": []}
 
     data = load_parent_checklist()
+    item_count = sum(len(group.get("items", [])) for group in data.get("groups", []))
+    if data.get("error") or item_count == 0:
+        return {
+            "tool_results": [
+                {
+                    "name": "parent_tool",
+                    "content": "家长陪同报到清单暂未配置，具体安排请以学校和学院最新通知为准。",
+                }
+            ],
+            "cards": [],
+        }
 
     return {
         "tool_results": [

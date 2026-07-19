@@ -33,12 +33,14 @@ def _fallback_checklist(error: str | None = None) -> dict[str, Any]:
 
 def load_checklist() -> dict[str, Any]:
     if not CHECKLIST_PATH.exists():
+        print("checklist 配置不存在:", CHECKLIST_PATH.as_posix())
         return _fallback_checklist(f"未找到 {CHECKLIST_PATH.as_posix()}")
 
     try:
         with CHECKLIST_PATH.open("r", encoding="utf-8") as file:
             data = json.load(file)
     except (OSError, json.JSONDecodeError) as error:
+        print("读取 checklist 配置失败:", repr(error))
         return _fallback_checklist(f"读取 checklist 失败：{error}")
 
     if not isinstance(data, dict):
@@ -101,6 +103,17 @@ def run_checklist_tools(question: str) -> dict[str, list[dict[str, Any]]]:
 
     if data.get("error"):
         content += f"\n配置提示：{data['error']}"
+
+    if data.get("error") or item_count == 0:
+        return {
+            "tool_results": [
+                {
+                    "name": "checklist_tool",
+                    "content": content,
+                }
+            ],
+            "cards": [],
+        }
 
     return {
         "tool_results": [

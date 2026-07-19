@@ -13,6 +13,7 @@ import httpx
 
 
 DEFAULT_OUTPUT = Path("data/official/calendar.json")
+DEFAULT_RAW_DIR = Path("data/raw")
 DEFAULT_TITLE = "上海交通大学校历"
 DEFAULT_DESCRIPTION = "校历信息来自上海交通大学官网，请以官网最新版本为准。"
 DEFAULT_LIST_URL = "https://jwc.sjtu.edu.cn/jxxl/lnxl.htm"
@@ -73,6 +74,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--title", default=DEFAULT_TITLE)
     parser.add_argument("--description", default=DEFAULT_DESCRIPTION)
     parser.add_argument("--local-file", default=None, help="Optional local file path under data/raw.")
+    parser.add_argument("--download", action="store_true", help="Download the detected/provided calendar asset into data/raw.")
+    parser.add_argument("--calendar-year", type=int, help='Local file year, for example 2026 creates data/raw/2026_calendar.pdf. Defaults to current year.')
+    parser.add_argument("--raw-dir", default=str(DEFAULT_RAW_DIR), help="Directory for downloaded calendar files.")
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT), help=argparse.SUPPRESS)
     parser.add_argument("--overwrite", action="store_true", help="Overwrite existing config.")
     return parser.parse_args()
@@ -82,6 +86,10 @@ def current_academic_year() -> str:
     today = date.today()
     start = today.year if today.month >= 7 else today.year - 1
     return f"{start}-{start + 1}"
+
+
+def current_calendar_year() -> int:
+    return date.today().year
 
 
 def normalize_url(base_url: str, href: str) -> str:
@@ -245,6 +253,74 @@ def fetch_auto_calendar(list_url: str, school_year: str) -> dict[str, str]:
     }
 
 
+def suffix_from_response(url: str, content_type: str) -> str:
+    path_suffix = Path(urlsplit(url).path).suffix.lower()
+    if path_suffix in {".pdf", ".png", ".jpg", ".jpeg"}:
+        return path_suffix
+
+    content_type = content_type.lower()
+    if "pdf" in content_type:
+        return ".pdf"
+    if "png" in content_type:
+        return ".png"
+    if "jpeg" in content_type or "jpg" in content_type:
+        return ".jpg"
+
+    return ".bin"
+
+
+def convert_image_to_pdf(image_path: Path, pdf_path: Path) -> None:
+    try:
+        from PIL import Image
+    except ImportError as error:
+        raise SystemExit(
+            "官网返回的是图片格式，转换为 PDF 需要 Pillow。请先安装：pip install pillow"
+        ) from error
+
+    with Image.open(image_path) as image:
+        if image.mode in ("RGBA", "LA", "P"):
+            image = image.convert("RGB")
+        image.save(pdf_path, "PDF", resolution=100.0)
+
+
+def download_calendar_asset(
+    asset_url: str,
+    calendar_year: int,
+    raw_dir: Path,
+    overwrite: bool = False,
+) -> Path:
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    headers = {"User-Agent": "Mozilla/5.0 SJTU-Freshman-Agent-Maintenance/1.0"}
+
+    response = httpx.get(asset_url, headers=headers, timeout=30, follow_redirects=True)
+    response.raise_for_status()
+
+    suffix = suffix_from_response(asset_url, response.headers.get("content-type", ""))
+    pdf_path = raw_dir / f"{calendar_year}_calendar.pdf"
+
+    if pdf_path.exists() and not overwrite:
+        raise SystemExit(f"{pdf_path} already exists. Use --overwrite to replace it.")
+
+    if suffix == ".pdf":
+        pdf_path.write_bytes(response.content)
+        return pdf_path
+
+    if suffix in {".png", ".jpg", ".jpeg"}:
+        image_path = raw_dir / f"{calendar_year}_calendar_source{suffix}"
+        if image_path.exists() and not overwrite:
+            raise SystemExit(f"{image_path} already exists. Use --overwrite to replace it.")
+
+        image_path.write_bytes(response.content)
+        convert_image_to_pdf(image_path, pdf_path)
+        return pdf_path
+
+    fallback_path = raw_dir / f"{calendar_year}_calendar_source{suffix}"
+    fallback_path.write_bytes(response.content)
+    raise SystemExit(
+        f"已下载资源到 {fallback_path}，但无法转换为 PDF。请手动检查官网资源格式。"
+    )
+
+
 def build_config(args: argparse.Namespace) -> dict[str, Any]:
     school_year = args.school_year or current_academic_year()
     title = args.title
@@ -264,12 +340,23 @@ def build_config(args: argparse.Namespace) -> dict[str, Any]:
     if not source_url:
         raise SystemExit("--source-url is required unless --auto can detect one.")
 
+    local_file = args.local_file
+    if args.download:
+        calendar_year = args.calendar_year or current_calendar_year()
+        downloaded = download_calendar_asset(
+            asset_url=pdf_url,
+            calendar_year=calendar_year,
+            raw_dir=Path(args.raw_dir),
+            overwrite=args.overwrite,
+        )
+        local_file = downloaded.as_posix()
+
     return {
         "title": title,
         "school_year": school_year,
         "semester": semester,
         "pdf_url": pdf_url,
-        "local_file": args.local_file,
+        "local_file": local_file,
         "source_url": source_url,
         "updated_at": args.updated_at,
         "description": args.description,
@@ -295,6 +382,7 @@ def main() -> None:
     print(f"- school_year: {data['school_year']}")
     print(f"- semester: {data['semester'] or '未指定'}")
     print(f"- pdf_url: {data['pdf_url']}")
+    print(f"- local_file: {data['local_file'] or '未指定'}")
     print(f"- source_url: {data['source_url']}")
     print(f"- updated_at: {data['updated_at']}")
 

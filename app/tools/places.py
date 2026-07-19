@@ -13,7 +13,8 @@ from app.tools.amap import (
 )
 
 
-PLACES_PATH = Path("data/places/campus_places.json")
+PLACES_PATH = Path("data/places/places.json")
+LEGACY_PLACES_PATH = Path("data/places/campus_places.json")
 DINING_PATH = Path("data/dining/canteens.json")
 
 ROUTE_WORDS = ["怎么去", "怎么到", "怎么走", "路线", "导航", "走到", "到哪里", "去哪里", "开车", "接送", "去", "到", "从"]
@@ -70,15 +71,20 @@ def build_keyword_place(query: str, poi: dict[str, Any]) -> dict[str, Any]:
 
 
 def load_places() -> list[dict[str, Any]]:
-    places = []
+    places_path = PLACES_PATH if PLACES_PATH.exists() else LEGACY_PLACES_PATH
+    places: list[dict[str, Any]] = []
 
-    if not PLACES_PATH.exists():
-        return load_dining_places()
+    if places_path.exists():
+        with places_path.open("r", encoding="utf-8") as file:
+            loaded = json.load(file)
+            if isinstance(loaded, list):
+                places = [item for item in loaded if isinstance(item, dict)]
 
-    with PLACES_PATH.open("r", encoding="utf-8") as file:
-        places = json.load(file)
+    combined: list[dict[str, Any]] = []
+    for place in places + load_dining_places():
+        append_unique_place(combined, place)
 
-    return places + load_dining_places()
+    return combined
 
 
 def load_dining_places() -> list[dict[str, Any]]:
@@ -140,10 +146,16 @@ def is_same_place(left: dict[str, Any] | None, right: dict[str, Any] | None) -> 
     if not left or not right:
         return False
 
-    if left.get("id") and right.get("id"):
-        return left["id"] == right["id"]
+    if left.get("id") and right.get("id") and left["id"] == right["id"]:
+        return True
 
-    return left.get("name") == right.get("name")
+    left_campus = str(left.get("campus") or "").replace("校区", "")
+    right_campus = str(right.get("campus") or "").replace("校区", "")
+
+    return (
+        left.get("name") == right.get("name")
+        and (not left_campus or not right_campus or left_campus == right_campus)
+    )
 
 
 def append_unique_place(
@@ -622,6 +634,7 @@ def run_planned_place_tool(
         )
 
         route_data = None
+        fallback_reason = None
 
         if origin and has_coordinate(origin) and has_coordinate(destination):
             route_data = get_walking_route(
@@ -630,6 +643,13 @@ def run_planned_place_tool(
                 destination_lng=destination["lng"],
                 destination_lat=destination["lat"],
             )
+
+        if origin is None:
+            fallback_reason = "缺少起点，请点击定位或补充起点。"
+        elif not has_coordinate(origin) or not has_coordinate(destination):
+            fallback_reason = "起点或终点暂未配置精确坐标。"
+        elif route_data is None:
+            fallback_reason = "暂时没有获取到可绘制路线。"
 
         cards.append(
             {
@@ -648,6 +668,8 @@ def run_planned_place_tool(
                     "route_provider": "amap" if route_data else None,
                     "route_source": route_source,
                     "navigation_url": build_navigation_url(destination, origin),
+                    "fallback_reason": fallback_reason,
+                    "error_message": fallback_reason,
                 },
             }
         )
@@ -720,6 +742,7 @@ def run_place_tools(
         )
 
         route_data = None
+        fallback_reason = None
 
         if destination and origin and has_coordinate(origin) and has_coordinate(destination):
             route_data = get_walking_route(
@@ -728,6 +751,14 @@ def run_place_tools(
                 destination_lng=destination["lng"],
                 destination_lat=destination["lat"],
             )
+
+        if destination:
+            if origin is None:
+                fallback_reason = "缺少起点，请点击定位或补充起点。"
+            elif not has_coordinate(origin) or not has_coordinate(destination):
+                fallback_reason = "起点或终点暂未配置精确坐标。"
+            elif route_data is None:
+                fallback_reason = "暂时没有获取到可绘制路线。"
 
         if destination:
             cards.insert(
@@ -748,6 +779,8 @@ def run_place_tools(
                         "route_provider": "amap" if route_data else None,
                         "route_source": route_source,
                         "navigation_url": build_navigation_url(destination, origin),
+                        "fallback_reason": fallback_reason,
+                        "error_message": fallback_reason,
                     },
                 },
             )

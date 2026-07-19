@@ -64,6 +64,8 @@ def select_tour(question: str, profile: StudentProfile | None = None) -> dict[st
         return None
 
     role = profile.role if profile else "student"
+    if any(word in question for word in ["家长", "送孩子", "陪同"]):
+        role = "parent"
     campus_hint = normalize_campus(profile.campus if profile else None) or normalize_campus(question) or "闵行"
 
     def score(tour: dict[str, Any]) -> int:

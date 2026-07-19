@@ -5,6 +5,7 @@ const CHECKLIST_STORAGE_KEY = "sjtu_freshman_checklist_state";
 const MODEL_STORAGE_KEY = "sjtu_freshman_selected_model";
 const config = window.APP_CONFIG || {};
 const API_BASE_URL = (config.API_BASE_URL || window.location.origin || "").replace(/\/$/, "");
+const FRIENDLY_SERVICE_ERROR = "暂时连接不上服务，请稍后再试。";
 const ROUTE_WORDS = [
   "怎么去",
   "怎么到",
@@ -395,6 +396,8 @@ const errorBox = document.getElementById("error");
 const clearButton = document.getElementById("clearButton");
 const serverStatus = document.getElementById("serverStatus");
 const modelSelect = document.getElementById("modelSelect");
+const locateButton = document.getElementById("locateButton");
+const chatAssistant = document.getElementById("chatAssistant");
 
 if (modelSelect) {
   modelSelect.value = localStorage.getItem(MODEL_STORAGE_KEY) || "deepseek-chat";
@@ -501,13 +504,18 @@ async function showDiningRoute(canteen, mapMount, button) {
     const routeCard = (data.cards || []).find((card) => card.type === "route");
 
     if (!routeCard || !routeCard.data || !routeCard.data.route) {
-      showInlineMapStatus(mapMount, "已识别食堂，但暂时没有获取到可绘制的路线。");
+      showInlineMapStatus(
+        mapMount,
+        (routeCard && routeCard.data && routeCard.data.fallback_reason) ||
+          "已识别食堂，但暂时没有获取到可绘制的路线。",
+      );
       return;
     }
 
     await showRouteOnMap(routeCard.data, mapMount);
   } catch (error) {
-    showInlineMapStatus(mapMount, `路线规划失败：${error.message}`);
+    console.error("dining route failed", error);
+    showInlineMapStatus(mapMount, "暂时没有获取到可绘制路线。你可以稍后重试，或先查看地点位置。");
   } finally {
     button.disabled = false;
     button.textContent = originalText;
@@ -648,7 +656,8 @@ function renderCards(cards, container) {
         const description = document.createElement("div");
         description.className = "card-description";
         description.textContent =
-          "已识别路线意图，但暂时没有获取到可用路线。可能是地点坐标未配置，或高德 API 没有返回路线结果。";
+          data.fallback_reason ||
+          "我已经识别到目的地，但暂时没有获取到可绘制路线。你可以稍后重试，或先查看地点位置。";
         item.appendChild(description);
       }
 
@@ -903,6 +912,13 @@ function renderCards(cards, container) {
       title.textContent = card.title || "食堂推荐";
       item.appendChild(title);
 
+      if (data.fallback_reason) {
+        const fallback = document.createElement("div");
+        fallback.className = "card-meta";
+        fallback.textContent = `${data.fallback_reason}，先按本地食堂信息推荐。`;
+        item.appendChild(fallback);
+      }
+
       recommendations.forEach((recommendation, index) => {
         const canteen = recommendation.canteen;
         const crowd = recommendation.crowd;
@@ -1074,10 +1090,20 @@ async function sendMessage() {
     });
 
     if (!response.ok) {
-      throw new Error("后端返回错误：" + response.status);
+      throw new Error(`HTTP ${response.status}`);
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error("INVALID_JSON");
+    }
+
+    if (!data || typeof data.answer !== "string" || !Array.isArray(data.cards)) {
+      throw new Error("INVALID_CHAT_RESPONSE");
+    }
+
     console.log("chat response:", data);
     removeThinkingMessage(thinkingMessage);
     appendMessage(
@@ -1100,11 +1126,13 @@ async function sendMessage() {
 
     saveHistory();
   } catch (error) {
+    console.error("chat request failed", error);
     removeThinkingMessage(thinkingMessage);
     if (error.name === "AbortError") {
       errorBox.textContent = "已中止回答。";
     } else {
-      errorBox.textContent = "请求失败：" + error.message;
+      errorBox.textContent = FRIENDLY_SERVICE_ERROR;
+      appendMessage("assistant", FRIENDLY_SERVICE_ERROR, [], false, []);
     }
   } finally {
     activeChatAbortController = null;
@@ -1141,12 +1169,49 @@ chatHistory.forEach((message) => {
 
 sendButton.addEventListener("click", sendMessage);
 
-document.querySelectorAll(".prompt-chip").forEach((button) => {
+function submitPrompt(prompt) {
+  if (!prompt) {
+    return;
+  }
+
+  if (activeChatAbortController) {
+    errorBox.textContent = "当前回答还在生成中，可以先中止回答。";
+    return;
+  }
+
+  messageInput.value = prompt;
+  chatAssistant?.scrollIntoView({ behavior: "smooth", block: "start" });
+  window.setTimeout(() => {
+    sendMessage();
+  }, 180);
+}
+
+document.querySelectorAll("[data-prompt]").forEach((button) => {
   button.addEventListener("click", () => {
-    messageInput.value = button.dataset.prompt || "";
-    messageInput.focus();
+    submitPrompt(button.dataset.prompt || "");
   });
 });
+
+if (locateButton) {
+  locateButton.addEventListener("click", async () => {
+    const originalText = locateButton.textContent;
+    locateButton.disabled = true;
+    locateButton.textContent = "正在定位...";
+    errorBox.textContent = "";
+
+    try {
+      const location = await getCurrentLocation();
+      if (location) {
+        errorBox.textContent = "已获取当前位置，路线问题会默认使用该位置作为起点。";
+      } else {
+        errorBox.textContent = lastLocationError || "暂时没有获取到当前位置。";
+      }
+    } finally {
+      locateButton.disabled = false;
+      locateButton.textContent = originalText;
+    }
+  });
+}
 
 //清空按钮
 clearButton.addEventListener("click", () => {

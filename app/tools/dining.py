@@ -66,10 +66,15 @@ DEFAULT_CAMPUSLIFE_URLS = [
 def load_canteens() -> list[dict[str, Any]]:
     # 本地食堂库提供位置、别名、特色等静态信息，实时拥挤度运行时再合并。
     if not CANTEENS_PATH.exists():
+        print("本地食堂知识库不存在:", CANTEENS_PATH.as_posix())
         return []
 
-    with CANTEENS_PATH.open("r", encoding="utf-8") as file:
-        data = json.load(file)
+    try:
+        with CANTEENS_PATH.open("r", encoding="utf-8") as file:
+            data = json.load(file)
+    except (OSError, json.JSONDecodeError) as error:
+        print("读取本地食堂知识库失败:", repr(error))
+        return []
 
     if isinstance(data, dict):
         return data.get("canteens", [])
@@ -445,6 +450,7 @@ def build_dining_card(
 ) -> dict[str, Any]:
     recommendations = build_recommendations(question, profile, preferences)
     campus = detect_campus(question, profile)
+    is_realtime = any(item.get("crowd") for item in recommendations)
 
     return {
         "type": "dining",
@@ -452,6 +458,8 @@ def build_dining_card(
         "data": {
             "campus": campus,
             "recommendations": recommendations,
+            "is_realtime": is_realtime,
+            "fallback_reason": None if is_realtime else "实时拥挤度暂不可用",
         },
     }
 

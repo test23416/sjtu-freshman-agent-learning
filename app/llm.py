@@ -1,10 +1,13 @@
 import json
+import logging
 import re
 
 import httpx
 
 from app.config import OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL
 
+
+logger = logging.getLogger(__name__)
 
 MODEL_OPTIONS = {
     "deepseek-chat": "deepseek-chat",
@@ -48,6 +51,11 @@ def clean_context_text(text: str, max_chars: int = 520) -> str:
 def generate_fallback_answer(question: str, contexts: list[dict], profile=None) -> str:
     best_content = clean_context_text(contexts[0]["content"]) if contexts else ""
     official_note = "具体安排以学校或学院最新通知为准。"
+    best_source = contexts[0].get("source", "") if contexts else ""
+    best_title = contexts[0].get("title", "") if contexts else ""
+
+    if best_content and ("calendar_text" in best_source or "校历" in best_title):
+        return f"{best_content}\n\n{official_note}"
 
     if profile_role(profile) == "parent":
         if best_content:
@@ -74,9 +82,8 @@ def generate_fallback_answer(question: str, contexts: list[dict], profile=None) 
         )
 
     return (
-        "报到当天可以先确认报到点和材料清单，到校后按学院或学校指引完成身份核验、"
-        "宿舍入住、校园卡和网络等基础事项；后续日程以学院通知为准。\n\n"
-        f"{official_note}"
+        "这个问题我暂时没有找到非常明确的资料。建议你补充校区、学院或具体场景，"
+        "我再帮你判断；具体安排以学校或学院最新通知为准。"
     )
 
 
@@ -147,7 +154,7 @@ def generate_answer(
     model: str | None = None,
 ) -> tuple[str, bool]:
     if not OPENAI_API_KEY:
-        print("没有读取到 OPENAI_API_KEY，使用本地 fallback 回答")
+        logger.warning("没有读取到 OPENAI_API_KEY，使用本地 fallback 回答")
         return generate_fallback_answer(question, contexts, profile=profile), False
 
     selected_model = resolve_model(model)
@@ -171,13 +178,13 @@ def generate_answer(
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.3,
             },
-            timeout=60,
+            timeout=30,
         )
         response.raise_for_status()
         data = response.json()
         return data["choices"][0]["message"]["content"], True
-    except Exception as error:
-        print("调用大模型失败", selected_model, repr(error))
+    except Exception:
+        logger.exception("LLM 调用失败，已使用 fallback 回答: model=%s", selected_model)
         return generate_fallback_answer(question, contexts, profile=profile), False
 
 
@@ -274,13 +281,13 @@ def plan_tool_use(
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0,
             },
-            timeout=20,
+            timeout=8,
         )
         response.raise_for_status()
         data = response.json()
         content = data["choices"][0]["message"]["content"]
-    except Exception as error:
-        print("工具规划调用大模型失败", selected_model, repr(error))
+    except Exception:
+        logger.exception("工具规划 LLM 调用失败，已跳过工具规划: model=%s", selected_model)
         return None
 
     plan = extract_json_object(content)

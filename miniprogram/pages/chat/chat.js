@@ -3,6 +3,7 @@ const app = getApp();
 const STORAGE_KEY = "sjtu_miniprogram_chat_history";
 const CHECKLIST_STORAGE_KEY = "sjtu_miniprogram_checklist_state";
 const ROUTE_WORDS = ["怎么去", "怎么到", "怎么走", "路线", "导航", "开车", "接送", "去", "到"];
+const FRIENDLY_SERVICE_ERROR = "暂时连接不上服务，请稍后再试。";
 
 function routeLike(text) {
   return ROUTE_WORDS.some((word) => text.includes(word));
@@ -286,7 +287,10 @@ Page({
           this.setData({ currentLocation: location, error: "" });
           resolve(location);
         },
-        fail: () => resolve(null)
+        fail: (error) => {
+          console.error("location failed", error);
+          resolve(null);
+        }
       });
     });
   },
@@ -308,6 +312,13 @@ Page({
           }))
         : this.data.messages
     });
+
+    if (!location) {
+      wx.showToast({
+        title: "请在微信权限中允许定位",
+        icon: "none"
+      });
+    }
   },
 
   async getLocationIfNeeded(text) {
@@ -329,6 +340,7 @@ Page({
       const task = wx.request({
         url: `${baseUrl}/api/chat`,
         method: "POST",
+        timeout: 30000,
         header: {
           "Content-Type": "application/json"
         },
@@ -338,7 +350,13 @@ Page({
             this.currentRequestTask = null;
           }
           if (res.statusCode < 200 || res.statusCode >= 300) {
+            console.error("chat http error", res.statusCode, res.data);
             reject(new Error(`后端返回 ${res.statusCode}`));
+            return;
+          }
+          if (!res.data || typeof res.data.answer !== "string" || !Array.isArray(res.data.cards)) {
+            console.error("invalid chat response", res.data);
+            reject(new Error("返回格式异常"));
             return;
           }
           resolve(res.data);
@@ -347,6 +365,7 @@ Page({
           if (this.currentRequestTask === task) {
             this.currentRequestTask = null;
           }
+          console.error("chat request failed", error);
           reject(new Error(error.errMsg || "请求失败"));
         }
       });
@@ -504,6 +523,7 @@ Page({
       });
       this.persistMessages(nextMessages);
     } catch (error) {
+      console.error("send chat failed", error);
       const nextMessages = this.data.messages.filter((message) => !message.thinking);
       if (this.cancelRequested) {
         this.setData({
@@ -515,12 +535,27 @@ Page({
         return;
       }
 
+      const failedMessages = [
+        ...nextMessages,
+        {
+          id: `a_${Date.now()}`,
+          role: "assistant",
+          content: FRIENDLY_SERVICE_ERROR,
+          used_llm: false,
+          cards: []
+        }
+      ];
+
       this.setData({
-        messages: nextMessages,
+        messages: failedMessages,
         sending: false,
-        error: error.message || "请求失败"
+        error: FRIENDLY_SERVICE_ERROR
       });
-      this.persistMessages(nextMessages);
+      wx.showToast({
+        title: FRIENDLY_SERVICE_ERROR,
+        icon: "none"
+      });
+      this.persistMessages(failedMessages);
     }
   },
 
@@ -552,7 +587,11 @@ Page({
     }
 
     if (!this.data.currentLocation) {
-      this.setData({ error: "请先点击定位，再导航到食堂。" });
+      this.setData({ error: "请先点击定位，或在问题里说明起点。" });
+      wx.showToast({
+        title: "请先点击定位，或说明起点",
+        icon: "none"
+      });
       return;
     }
 

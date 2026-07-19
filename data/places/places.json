@@ -1,0 +1,189 @@
+[
+  {
+    "id": "baoyugang_library",
+    "name": "包玉刚图书馆",
+    "aliases": ["包图", "包玉刚", "包玉刚图书馆主馆", "闵行校区包图"],
+    "campus": "闵行校区",
+    "category": "图书馆",
+    "lng": 121.429836,
+    "lat": 31.02195,
+    "description": "闵行校区主要图书馆之一，新生常用于自习、借阅和考试周复习。",
+    "tags": ["图书馆", "自习", "学习", "导航"]
+  },
+  {
+    "id": "li_zhengdao_library",
+    "name": "李政道图书馆",
+    "aliases": ["李馆", "李政道馆", "李政道图书馆"],
+    "campus": "闵行校区",
+    "category": "图书馆",
+    "lng": null,
+    "lat": null,
+    "description": "闵行校区重要图书馆和学习空间，坐标可由地图工具实时补充。",
+    "tags": ["图书馆", "学习", "自习"]
+  },
+  {
+    "id": "dorm_east_1",
+    "name": "东1宿舍",
+    "aliases": ["东一", "东1", "东一宿舍", "东区1号楼", "东区宿舍"],
+    "campus": "闵行校区",
+    "category": "宿舍",
+    "lng": null,
+    "lat": null,
+    "description": "闵行校区东区学生宿舍之一。具体楼栋和入住安排以学院、宿管通知为准。",
+    "tags": ["东区", "住宿", "新生", "报到"]
+  },
+  {
+    "id": "dorm_west_area",
+    "name": "西区宿舍",
+    "aliases": ["西区", "西一", "西二", "西三", "西区宿舍"],
+    "campus": "闵行校区",
+    "category": "宿舍",
+    "lng": null,
+    "lat": null,
+    "description": "闵行校区西区学生宿舍区域。具体楼栋和入住安排以学院、宿管通知为准。",
+    "tags": ["西区", "住宿", "新生"]
+  },
+  {
+    "id": "siyuan_gate",
+    "name": "思源门",
+    "aliases": ["交大思源门", "思源门入口", "闵行思源门"],
+    "campus": "闵行校区",
+    "category": "校门",
+    "lng": null,
+    "lat": null,
+    "description": "闵行校区常用校门之一，家长接送和到校报到时可能会经过。",
+    "tags": ["校门", "入口", "导航", "接送"]
+  },
+  {
+    "id": "seiee_building",
+    "name": "电院楼群",
+    "aliases": ["电院", "电子信息与电气工程学院", "SEIEE"],
+    "campus": "闵行校区",
+    "category": "学院楼",
+    "lng": 121.441593,
+    "lat": 31.02494,
+    "description": "电子信息与电气工程学院相关楼群。",
+    "tags": ["学院", "上课", "电院"]
+  },
+  {
+    "id": "student_service_center",
+    "name": "学生服务中心",
+    "aliases": ["事务大厅", "服务大厅", "学生事务中心", "学生服务中心"],
+    "campus": "闵行校区",
+    "category": "学生事务",
+    "lng": null,
+    "lat": null,
+    "description": "办理或咨询部分学生事务的地点。具体业务以学校最新服务指南为准。",
+    "tags": ["事务", "证明", "咨询"]
+  },
+  {
+    "id": "minhang_hospital",
+    "name": "校医院",
+    "aliases": ["闵行校医院", "上海交通大学校医院", "交大校医院", "校医"],
+    "campus": "闵行校区",
+    "category": "医疗",
+    "lng": 121.434267,
+    "lat": 31.018824,
+    "description": "闵行校区校医院。服务时间、体检和医保安排请以校医院最新通知为准。",
+    "tags": ["医疗", "健康", "应急", "体检"]
+  },
+  {
+    "id": "canteen_1",
+    "name": "第一餐饮大楼",
+    "aliases": ["一餐", "一食堂", "第一食堂", "第一餐饮大楼"],
+    "campus": "闵行校区",
+    "category": "食堂",
+    "lng": null,
+    "lat": null,
+    "description": "学生公寓西一区北面，上中下院和包玉刚图书馆东侧。",
+    "tags": ["食堂", "吃饭", "餐饮"]
+  },
+  {
+    "id": "canteen_2",
+    "name": "第二餐饮大楼",
+    "aliases": ["二餐", "二食堂", "第二食堂", "第二餐饮大楼"],
+    "campus": "闵行校区",
+    "category": "食堂",
+    "lng": null,
+    "lat": null,
+    "description": "东一、二区宿舍楼群之间，靠近东上院、东中院、东下院。",
+    "tags": ["食堂", "吃饭", "餐饮"]
+  },
+  {
+    "id": "canteen_3",
+    "name": "第三餐饮大楼",
+    "aliases": ["三餐", "三食堂", "第三食堂", "第三餐饮大楼"],
+    "campus": "闵行校区",
+    "category": "食堂",
+    "lng": null,
+    "lat": null,
+    "description": "学生活动中心北侧、东三区宿舍楼旁、捭阖塘边。",
+    "tags": ["食堂", "吃饭", "餐饮"]
+  },
+  {
+    "id": "canteen_4",
+    "name": "第四餐饮大楼",
+    "aliases": ["四餐", "四食堂", "第四食堂", "第四餐饮大楼"],
+    "campus": "闵行校区",
+    "category": "食堂",
+    "lng": null,
+    "lat": null,
+    "description": "校园西北方向，靠近李政道图书馆、西三区宿舍、理科群楼和体育中心。",
+    "tags": ["食堂", "吃饭", "餐饮"]
+  },
+  {
+    "id": "canteen_5",
+    "name": "第五餐饮大楼",
+    "aliases": ["五餐", "五食堂", "第五食堂", "第五餐饮大楼"],
+    "campus": "闵行校区",
+    "category": "食堂",
+    "lng": null,
+    "lat": null,
+    "description": "靠近电院楼群，淡水河畔。",
+    "tags": ["食堂", "吃饭", "餐饮"]
+  },
+  {
+    "id": "canteen_6",
+    "name": "第六餐饮大楼",
+    "aliases": ["六餐", "六食堂", "第六食堂", "第六餐饮大楼"],
+    "campus": "闵行校区",
+    "category": "食堂",
+    "lng": null,
+    "lat": null,
+    "description": "闵行校区东侧，综合实验楼与生命科学技术学院之间。",
+    "tags": ["食堂", "吃饭", "餐饮"]
+  },
+  {
+    "id": "canteen_7",
+    "name": "第七餐饮大楼",
+    "aliases": ["七餐", "七食堂", "第七食堂", "第七餐饮大楼"],
+    "campus": "闵行校区",
+    "category": "食堂",
+    "lng": null,
+    "lat": null,
+    "description": "转化医学楼北侧，靠近农业与生物学院。",
+    "tags": ["食堂", "吃饭", "餐饮"]
+  },
+  {
+    "id": "hale_canteen",
+    "name": "哈乐餐厅",
+    "aliases": ["哈乐", "哈乐食堂"],
+    "campus": "闵行校区",
+    "category": "食堂",
+    "lng": null,
+    "lat": null,
+    "description": "西一区宿舍群内，适合午餐、晚餐和夜宵场景。",
+    "tags": ["食堂", "夜宵", "西区"]
+  },
+  {
+    "id": "yulanyuan",
+    "name": "玉兰苑",
+    "aliases": ["玉兰苑商圈", "玉兰苑餐饮"],
+    "campus": "闵行校区",
+    "category": "商业餐饮",
+    "lng": null,
+    "lat": null,
+    "description": "闵行校区综合商圈，包含餐厅、便利店和饮品店等。",
+    "tags": ["餐饮", "便利店", "咖啡", "商圈"]
+  }
+]

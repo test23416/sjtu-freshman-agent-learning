@@ -21,14 +21,20 @@ def normalize_poi(poi: dict[str, Any]) -> dict[str, Any] | None:
     if "," not in location:
         return None
 
-    lng, lat = location.split(",", 1)
+    try:
+        lng, lat = location.split(",", 1)
+        lng_value = float(lng)
+        lat_value = float(lat)
+    except (TypeError, ValueError):
+        print("高德 POI 坐标解析失败:", poi)
+        return None
 
     return {
         "name": poi.get("name"),
         "address": poi.get("address"),
         "location": location,
-        "lng": float(lng),
-        "lat": float(lat),
+        "lng": lng_value,
+        "lat": lat_value,
         "adname": poi.get("adname"),
         "type": poi.get("type"),
         "id": poi.get("id"),

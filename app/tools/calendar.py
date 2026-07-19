@@ -8,13 +8,69 @@ from typing import Any
 
 
 CALENDAR_PATH = Path("data/official/calendar.json")
-CALENDAR_WORDS = ["校历", "放假", "寒假", "暑假", "开学", "考试周", "节假日", "假期"]
+OFFICIAL_DIR = Path("data/official")
+RAW_DIR = Path("data/raw")
+KNOWLEDGE_DIR = Path("data/knowledge")
+CALENDAR_WORDS = [
+    "校历",
+    "放假",
+    "寒假",
+    "暑假",
+    "开学",
+    "考试周",
+    "节假日",
+    "假期",
+    "国庆",
+    "中秋",
+    "元旦",
+    "春节",
+    "清明",
+    "劳动节",
+    "端午",
+]
+CALENDAR_DOCUMENT_WORDS = [
+    "校历",
+    "pdf",
+    "PDF",
+    "文件",
+    "原版",
+    "链接",
+    "在哪里",
+    "在哪",
+    "给我",
+    "发我",
+    "打开",
+    "下载",
+    "查看",
+]
+CALENDAR_DETAIL_WORDS = [
+    "几天",
+    "什么时候",
+    "哪天",
+    "日期",
+    "时间",
+    "安排",
+    "放几天",
+    "开始",
+    "结束",
+    "多久",
+]
 OFFICIAL_NOTE = "校历来自服务器端维护的官方资料副本/链接，请以学校官网最新版本为准。"
 CST = timezone(timedelta(hours=8), name="Asia/Shanghai")
 
 
 def is_calendar_question(question: str) -> bool:
     return any(word in question for word in CALENDAR_WORDS)
+
+
+def is_calendar_document_request(question: str) -> bool:
+    if not is_calendar_question(question):
+        return False
+
+    if any(word in question for word in CALENDAR_DETAIL_WORDS):
+        return False
+
+    return "校历" in question and any(word in question for word in CALENDAR_DOCUMENT_WORDS)
 
 
 def _current_academic_year(now: datetime) -> str:
@@ -53,20 +109,114 @@ def _requested_academic_year(question: str, now: datetime) -> str | None:
     return None
 
 
-def _load_calendar_config() -> tuple[dict[str, Any], str | None]:
-    if not CALENDAR_PATH.exists():
-        return {}, f"未找到 {CALENDAR_PATH.as_posix()}，已返回官网入口作为兜底。"
+def _requested_calendar_year(question: str, now: datetime) -> int:
+    years = [int(item) for item in re.findall(r"20\d{2}", question)]
+    if years:
+        return years[0]
 
+    relative_words = {
+        "前年": -2,
+        "上一年": -1,
+        "上年": -1,
+        "去年": -1,
+        "今年": 0,
+        "本年": 0,
+        "当前": 0,
+        "明年": 1,
+        "下一年": 1,
+        "下年": 1,
+    }
+
+    for word, offset in relative_words.items():
+        if word in question:
+            return now.year + offset
+
+    return now.year
+
+
+def _find_local_calendar_pdf(calendar_year: int) -> Path | None:
+    candidates = [
+        RAW_DIR / f"{calendar_year}_calendar.pdf",
+        KNOWLEDGE_DIR / f"{calendar_year}_calendar.pdf",
+    ]
+
+    for path in candidates:
+        if path.exists():
+            return path
+
+    return None
+
+
+def _local_file_url(local_file: str | None) -> str | None:
+    if not local_file:
+        return None
+
+    path = Path(local_file)
     try:
-        with CALENDAR_PATH.open("r", encoding="utf-8") as file:
+        path = path.resolve().relative_to(Path.cwd().resolve())
+    except ValueError:
+        return None
+
+    if path.exists() and path.as_posix().startswith("data/raw/"):
+        return _raw_file_url(path)
+
+    return None
+
+
+def _raw_file_url(path: Path) -> str:
+    return "/" + path.as_posix().replace("\\", "/")
+
+
+def _load_json_file(path: Path) -> dict[str, Any] | None:
+    try:
+        with path.open("r", encoding="utf-8") as file:
             data = json.load(file)
     except (OSError, json.JSONDecodeError) as error:
-        return {}, f"读取 {CALENDAR_PATH.as_posix()} 失败：{error}"
+        print("读取校历配置失败:", path.as_posix(), repr(error))
+        return None
 
     if not isinstance(data, dict):
-        return {}, f"{CALENDAR_PATH.as_posix()} 格式不正确，应为 JSON 对象。"
+        print("校历配置格式不正确:", path.as_posix())
+        return None
 
-    return data, None
+    return data
+
+
+def _load_calendar_config() -> tuple[dict[str, Any], str | None]:
+    records: list[dict[str, Any]] = []
+    error: str | None = None
+
+    if not CALENDAR_PATH.exists():
+        print("校历配置不存在:", CALENDAR_PATH.as_posix())
+        error = "当前暂未配置校历数据，建议先查看学校官网最新校历。"
+        data: dict[str, Any] = {}
+    else:
+        data = _load_json_file(CALENDAR_PATH) or {}
+        if not data:
+            error = "当前暂未配置校历数据，建议先查看学校官网最新校历。"
+
+    for path in sorted(OFFICIAL_DIR.glob("calendar_*.json")):
+        item = _load_json_file(path)
+        if item:
+            records.append(item)
+
+    existing_items = data.get("items")
+    if isinstance(existing_items, list):
+        records.extend(item for item in existing_items if isinstance(item, dict))
+
+    if records:
+        seen: set[str] = set()
+        deduped: list[dict[str, Any]] = []
+        for item in records:
+            key = item.get("school_year") or item.get("title") or str(id(item))
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(item)
+        data = {**data, "items": deduped}
+        error = None
+
+    return data, error
 
 
 def _normalize_record(record: dict[str, Any], academic_year: str) -> dict[str, Any]:
@@ -110,11 +260,27 @@ def _select_calendar_record(config: dict[str, Any], academic_year: str) -> dict[
 
 def get_calendar_card_data(question: str, now: datetime | None = None) -> dict[str, Any]:
     current = now or datetime.now(CST)
+    calendar_year = _requested_calendar_year(question, current)
     academic_year = _requested_academic_year(question, current) or _current_academic_year(current)
     config, error = _load_calendar_config()
     record = _select_calendar_record(config, academic_year) if config else {}
     data = _normalize_record(record, academic_year)
     configured_year = data.get("school_year")
+    local_pdf = _find_local_calendar_pdf(calendar_year)
+    configured_local_url = _local_file_url(data.get("local_file"))
+
+    if configured_local_url:
+        data["pdf_url"] = configured_local_url
+        data["calendar_url"] = configured_local_url
+        data["description"] = "校历 PDF 来自服务器本地维护的官方原版文件，请以学校官网最新版本为准。"
+        error = None
+    elif local_pdf:
+        data["pdf_url"] = _raw_file_url(local_pdf)
+        data["calendar_url"] = data["pdf_url"]
+        data["local_file"] = local_pdf.as_posix()
+        data["title"] = f"上海交通大学 {calendar_year} 年校历"
+        data["description"] = "校历 PDF 来自服务器本地维护的官方原版文件，请以学校官网最新版本为准。"
+        error = None
 
     if not data.get("pdf_url"):
         data["pdf_url"] = "https://www.sjtu.edu.cn/"
@@ -126,6 +292,7 @@ def get_calendar_card_data(question: str, now: datetime | None = None) -> dict[s
     data.update(
         {
             "current_year": current.year,
+            "calendar_year": calendar_year,
             "requested_school_year": academic_year,
             "checked_at": current.isoformat(),
             "config_error": error,
@@ -136,7 +303,7 @@ def get_calendar_card_data(question: str, now: datetime | None = None) -> dict[s
 
 
 def run_calendar_tools(question: str) -> dict[str, list[dict[str, Any]]]:
-    if not is_calendar_question(question):
+    if not is_calendar_document_request(question):
         return {"tool_results": [], "cards": []}
 
     data = get_calendar_card_data(question)

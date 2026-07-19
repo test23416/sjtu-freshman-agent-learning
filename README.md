@@ -76,6 +76,16 @@ uvicorn app.main:app --reload
 http://127.0.0.1:8000/
 ```
 
+## Web 首页
+
+Web 前端打开后会先展示“交大新生助手”首页，而不是直接进入纯聊天框。首页包含：
+
+- 功能入口：新生问答、校园导航、食堂推荐、校历查询、新生报到清单、家长模式。
+- 快捷问题：例如“包图怎么走”“给我一份新生报到清单”“校历在哪里”“送孩子报到要准备什么”。
+- 聊天助手区：保留身份选择、校区/学院/专业/宿舍信息、模型选择、定位、清空对话和消息列表。
+
+点击首页或聊天区的快捷问题按钮后，前端会自动滚动到聊天区并复用原有 `sendMessage()` 流程调用 `/api/chat`。路线、食堂、校历、checklist、家长模式等 cards 渲染逻辑保持不变。
+
 ## 官方资料离线更新流程
 
 低频更新资料不要在用户查询时实时抓取官网。维护者应定期更新 `data/` 目录，更新后重启后端，或按项目实际部署方式触发知识库重新加载。
@@ -92,17 +102,26 @@ py scripts/import_pdf_handbook.py --all --overwrite
 
 校历：
 
-```powershell
-py scripts/update_calendar_config.py --pdf-url "https://www.sjtu.edu.cn/resource/assets/img/2026_2027qiuji.pdf" --school-year "2026-2027" --semester "秋季学期" --source-url "https://www.sjtu.edu.cn/" --updated-at "2026-07-15" --overwrite
+维护校历时建议同时放两份本地资料：
+
+```text
+data/raw/2026_calendar.pdf
+data/knowledge/2026_calendar_text
 ```
 
-也可以让维护脚本自动去教务处历年校历页匹配对应学年，再写入本地配置：
+可以手动下载并按这个名字放入 `data/raw/`，也可以让维护脚本自动去教务处校历页匹配并下载：
 
 ```powershell
-py scripts/update_calendar_config.py --auto --school-year "2026-2027" --overwrite
+py scripts/update_calendar_config.py --auto --download --calendar-year 2026 --school-year "2026-2027" --overwrite
 ```
 
-脚本会写入 `data/official/calendar.json`。自动模式只在维护者运行脚本时访问官网；用户问“校历、放假、寒假、暑假、开学、考试周、节假日、假期”等问题时，后端仍然只读取本地配置并返回 calendar card。
+脚本会把官网资源下载到 `data/raw/2026_calendar.pdf`，并把 `data/official/calendar.json` 的 `local_file` 更新为对应本地文件。如果官网资源是图片格式，脚本会尝试转换成 PDF；没有转换依赖时会提示安装 Pillow。
+
+用户明确索要校历文件时，例如“给我校历”“校历在哪里”“打开 2026 校历”，后端会优先返回 `data/raw/年份_calendar.pdf` 对应的 calendar card，前端可直接打开 PDF。
+
+用户询问校历内容时，例如“国庆放几天”“寒假什么时候开始”“考试周是哪几周”，后端不会直接返回 PDF，而是从 `data/knowledge/年份_calendar_text` 这类文字版校历中检索并回答。该文字版可以没有 `.md` 后缀，也可以使用 `.md`、`.txt` 或 `.text`。
+
+`data/official/calendar.json` 仍可作为没有本地 PDF 时的备用链接配置；维护者也可以继续使用 `scripts/update_calendar_config.py` 更新该备用配置。
 
 Checklist：
 

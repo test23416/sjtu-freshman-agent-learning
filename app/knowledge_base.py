@@ -1,10 +1,12 @@
 import math
 import re
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
 
 KNOWLEDGE_DIR = Path("data/knowledge")
+logger = logging.getLogger(__name__)
 
 _ASCII_WORD_RE = re.compile(r"[a-zA-Z0-9_]+")
 _CJK_RE = re.compile(r"[\u4e00-\u9fff]")
@@ -27,11 +29,21 @@ class KnowledgeBase:
         self.reload()
 
     def reload(self) -> None:
-        self._chunks = self._load_chunks()
-        self._idf = self._build_idf(self._chunks)
+        try:
+            self._chunks = self._load_chunks()
+            self._idf = self._build_idf(self._chunks)
+        except Exception:
+            logger.exception("知识库重载失败，已降级为空知识库")
+            self._chunks = []
+            self._idf = {}
 
     def search(self, query: str, top_k: int = 4) -> list[dict]:
-        query_terms = tokenize(query)
+        try:
+            query_terms = tokenize(query)
+        except Exception:
+            logger.exception("知识库查询分词失败")
+            return []
+
         if not query_terms:
             return []
 
@@ -68,16 +80,23 @@ class KnowledgeBase:
 
     def _load_chunks(self) -> list[DocumentChunk]:
         if not self.knowledge_dir.exists():
+            logger.warning("知识库目录不存在: %s", self.knowledge_dir)
             return []
 
         chunks: list[DocumentChunk] = []
 
-        for path in sorted(self.knowledge_dir.glob("**/*.md")):
-            text = path.read_text(encoding="utf-8").strip()
-            if not text:
+        for path in sorted(self.knowledge_dir.glob("**/*")):
+            if not is_knowledge_text_file(path):
                 continue
 
-            chunks.extend(split_markdown(path, text))
+            try:
+                text = path.read_text(encoding="utf-8").strip()
+                if not text:
+                    continue
+
+                chunks.extend(split_markdown(path, text))
+            except Exception:
+                logger.exception("知识库文件读取失败，已跳过: %s", path)
 
         return chunks
 
@@ -120,6 +139,16 @@ def split_markdown(path: Path, text: str) -> list[DocumentChunk]:
     return chunks
 
 
+def is_knowledge_text_file(path: Path) -> bool:
+    if not path.is_file():
+        return False
+
+    if path.suffix.lower() in {".md", ".txt", ".text"}:
+        return True
+
+    return path.name.endswith("_calendar_text")
+
+
 def make_chunk(title: str, source: str, content: str) -> DocumentChunk:
     return DocumentChunk(
         title=title,
@@ -151,4 +180,8 @@ knowledge_base = KnowledgeBase(KNOWLEDGE_DIR)
 
 
 def search_knowledge(query: str, top_k: int = 4) -> list[dict]:
-    return knowledge_base.search(query, top_k=top_k)
+    try:
+        return knowledge_base.search(query, top_k=top_k)
+    except Exception:
+        logger.exception("知识库检索失败，已返回空结果")
+        return []

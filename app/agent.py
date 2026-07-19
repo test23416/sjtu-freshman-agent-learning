@@ -36,6 +36,12 @@ def build_calendar_answer(calendar_result: dict) -> str:
     card = calendar_result["cards"][0]
     data = card["data"]
 
+    if data.get("config_error"):
+        return (
+            "当前暂未配置校历数据，建议先查看学校官网最新校历。"
+            "具体安排以学校或学院最新通知为准。"
+        )
+
     return (
         f"我先按当前时间判断，当前年份是 {data.get('current_year')} 年，"
         f"目标学年是 {data.get('requested_school_year') or data.get('academic_year')}。\n\n"
@@ -66,6 +72,44 @@ def build_tour_answer(tour_result: dict) -> str:
         f"可以走这条路线：{data.get('title')}，预计用时 {data.get('duration')}，"
         f"一共 {stop_count} 个点位。下面卡片里按顺序列出了每一站；有坐标的点位也会在地图上连成参观路线。"
     )
+
+
+def build_route_fallback_answer(route_card: dict) -> str:
+    data = route_card.get("data", {})
+    destination = data.get("to") or {}
+
+    if data.get("missing_origin"):
+        return (
+            f"我已经识别到目的地：{destination.get('name', '目的地')}，"
+            "但还没有可用的起点。你可以点击定位，或补充“从哪里出发”，我再帮你规划路线。"
+        )
+
+    return (
+        "我已经识别到目的地，但暂时没有获取到可绘制路线。"
+        "你可以稍后重试，或先查看地点位置。"
+    )
+
+
+def build_dining_fallback_answer(dining_result: dict) -> str:
+    card = dining_result["cards"][0]
+    data = card.get("data", {})
+    recommendations = data.get("recommendations", [])
+    names = [
+        item.get("canteen", {}).get("name")
+        for item in recommendations
+        if item.get("canteen", {}).get("name")
+    ]
+
+    prefix = (
+        "当前没有获取到实时拥挤度，我先根据食堂位置和常见就餐信息给你推荐。"
+        if data.get("fallback_reason")
+        else "下面是结合食堂信息给你的推荐。"
+    )
+
+    if not names:
+        return "当前暂时没有可推荐的食堂数据。你可以稍后再试，或补充校区后我再帮你筛选。"
+
+    return f"{prefix}可以先看看：{'、'.join(names[:3])}。下方卡片里可以继续查看详情或发起导航。"
 
 
 def chat_with_agent(request: ChatRequest) -> ChatResponse:
@@ -104,6 +148,14 @@ def chat_with_agent(request: ChatRequest) -> ChatResponse:
     checklist_result = run_checklist_tools(request.message)
     tool_results.extend(checklist_result["tool_results"])
 
+    if checklist_result["tool_results"] and not checklist_result["cards"] and not parent_result["cards"]:
+        return ChatResponse(
+            answer="当前暂未配置新生报到清单数据，建议先查看学校或学院最新通知；你也可以补充具体场景，我先按通用报到准备帮你梳理。",
+            sources=results,
+            used_llm=False,
+            cards=[],
+        )
+
     if checklist_result["cards"] and not parent_result["cards"]:
         return ChatResponse(
             answer=build_checklist_answer(checklist_result),
@@ -137,6 +189,15 @@ def chat_with_agent(request: ChatRequest) -> ChatResponse:
     )
     tool_results.extend(dining_result["tool_results"])
 
+    route_cards = [card for card in place_result["cards"] if card.get("type") == "route"]
+    if route_cards and not route_cards[0].get("data", {}).get("route") and not dining_result["cards"]:
+        return ChatResponse(
+            answer=build_route_fallback_answer(route_cards[0]),
+            sources=results,
+            used_llm=False,
+            cards=parent_result["cards"] + checklist_result["cards"] + place_result["cards"],
+        )
+
     answer, used_llm = generate_answer(
         question=request.message,
         contexts=results,
@@ -145,6 +206,9 @@ def chat_with_agent(request: ChatRequest) -> ChatResponse:
         tool_results=tool_results,
         model=request.model,
     )
+
+    if not used_llm and dining_result["cards"]:
+        answer = build_dining_fallback_answer(dining_result)
 
     return ChatResponse(
         answer=answer,

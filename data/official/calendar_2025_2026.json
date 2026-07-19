@@ -1,0 +1,69 @@
+{
+  "title": "上海交通大学 2025-2026 学年校历",
+  "school_year": "2025-2026",
+  "semester": "全年",
+  "pdf_url": "/data/raw/2026_calendar.pdf",
+  "local_file": "data/raw/2026_calendar.pdf",
+  "source_url": "https://jwc.sjtu.edu.cn/jxxl/lnxl.htm",
+  "updated_at": "2026-07-19",
+  "description": "校历信息来自服务器端维护的官方资料副本/链接，并已整理为 data/knowledge/academic_calendar.md。具体安排请以学校教务处最新版本为准。",
+  "terms": [
+    {
+      "name": "秋季学期",
+      "start": "2025-09",
+      "end": "2026-01",
+      "weeks": 18,
+      "exam_weeks": "最后 2 周"
+    },
+    {
+      "name": "寒假",
+      "start": "2026-01-19",
+      "end": "2026-03-01"
+    },
+    {
+      "name": "春季学期",
+      "start": "2026-03-02",
+      "end": "2026-06-20",
+      "weeks": 18
+    },
+    {
+      "name": "暑假",
+      "start": "2026-08-03",
+      "end": "2026-09-13"
+    }
+  ],
+  "holidays": [
+    {
+      "name": "国庆节",
+      "start": "2025-10-01",
+      "end": "2025-10-03",
+      "note": "具体调休按国务院通知执行"
+    },
+    {
+      "name": "中秋节",
+      "date": "2025-10-06"
+    },
+    {
+      "name": "元旦",
+      "date": "2026-01-01"
+    },
+    {
+      "name": "春节",
+      "start": "2026-02-16",
+      "end": "2026-02-19"
+    },
+    {
+      "name": "清明节",
+      "date": "2026-04-05"
+    },
+    {
+      "name": "劳动节",
+      "start": "2026-05-01",
+      "end": "2026-05-02"
+    },
+    {
+      "name": "端午节",
+      "date": "2026-06-19"
+    }
+  ]
+}

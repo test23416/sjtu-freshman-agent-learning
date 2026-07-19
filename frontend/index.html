@@ -2,93 +2,198 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>交大新生助手</title>
-    <link rel="stylesheet" href="./style.css?v=20260715-model-inline" />
+    <link rel="stylesheet" href="./style.css?v=20260716-home" />
   </head>
   <body>
     <main class="app-shell">
-      <section class="topbar">
+      <header class="topbar">
         <div>
           <p class="eyebrow">SJTU Freshman Agent</p>
           <h1>交大新生助手</h1>
         </div>
         <div id="serverStatus" class="server-status">正在检查后端连接...</div>
+      </header>
+
+      <section class="hero-section" aria-labelledby="heroTitle">
+        <div class="hero-copy">
+          <p class="eyebrow">面向 SJTU 新生与家长的校园智能助手</p>
+          <h2 id="heroTitle">交大新生助手</h2>
+          <p class="hero-description">
+            可以帮助新生和家长查询报到事项、校园路线、食堂推荐、校历和入学清单。
+          </p>
+          <div class="hero-actions">
+            <button type="button" class="primary-button hero-ask-button" data-prompt="给我一份新生报到清单">
+              立即提问
+            </button>
+            <a class="secondary-link" href="#chatAssistant">进入聊天区</a>
+          </div>
+        </div>
+        <div class="hero-panel" aria-label="功能概览">
+          <div class="hero-stat">
+            <span>导航</span>
+            <strong>校园地点与路线</strong>
+          </div>
+          <div class="hero-stat">
+            <span>生活</span>
+            <strong>食堂推荐与拥挤度</strong>
+          </div>
+          <div class="hero-stat">
+            <span>资料</span>
+            <strong>校历、手册、清单</strong>
+          </div>
+        </div>
       </section>
 
-      <section class="workspace">
-        <aside class="profile-panel" aria-label="个人信息">
-          <div class="panel-header">
-            <h2>个人信息</h2>
-            <p>用于路线、食堂和入学事项的个性化推荐。</p>
+      <section class="home-section" aria-labelledby="featureTitle">
+        <div class="section-heading">
+          <p class="eyebrow">功能入口</p>
+          <h2 id="featureTitle">常用能力</h2>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <span class="feature-icon">问</span>
+            <h3>新生问答</h3>
+            <p>围绕入学准备、校园生活、报到流程和常见问题给出回答。</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-icon">路</span>
+            <h3>校园导航</h3>
+            <p>支持“包图怎么走”“从当前位置到宿舍”等校园路线问题。</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-icon">食</span>
+            <h3>食堂推荐</h3>
+            <p>结合食堂知识库、实时拥挤度和历史偏好推荐就餐地点。</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-icon">历</span>
+            <h3>校历查询</h3>
+            <p>读取服务器端维护的官方校历配置，返回可点击的校历卡片。</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-icon">清</span>
+            <h3>新生报到清单</h3>
+            <p>按到校前、报到当天、入学后一周展示 checklist，并保存勾选状态。</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-icon">家</span>
+            <h3>家长模式</h3>
+            <p>切换为家长身份后，回答更关注陪同报到、接送、安全和适应大学。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="home-section prompt-section" aria-labelledby="promptTitle">
+        <div class="section-heading">
+          <p class="eyebrow">你可以这样问</p>
+          <h2 id="promptTitle">快捷问题</h2>
+        </div>
+        <div class="home-prompts" aria-label="首页快捷问题">
+          <button type="button" class="prompt-chip prompt-chip-large" data-prompt="包图怎么走">包图怎么走</button>
+          <button type="button" class="prompt-chip prompt-chip-large" data-prompt="给我一份新生报到清单">
+            给我一份新生报到清单
+          </button>
+          <button type="button" class="prompt-chip prompt-chip-large" data-prompt="推荐几个食堂，导航到那里去">
+            推荐几个食堂，导航到那里去
+          </button>
+          <button type="button" class="prompt-chip prompt-chip-large" data-prompt="校历在哪里">校历在哪里</button>
+          <button type="button" class="prompt-chip prompt-chip-large" data-prompt="送孩子报到要准备什么">
+            送孩子报到要准备什么
+          </button>
+          <button type="button" class="prompt-chip prompt-chip-large" data-prompt="给家长推荐一条参观校园的路线">
+            给家长推荐一条参观校园的路线
+          </button>
+        </div>
+      </section>
+
+      <section id="chatAssistant" class="chat-section" aria-labelledby="chatTitle">
+        <div class="section-heading chat-heading">
+          <div>
+            <p class="eyebrow">Chat Assistant</p>
+            <h2 id="chatTitle">聊天助手</h2>
           </div>
+          <p>选择身份和校区后提问，系统会按需要返回路线、食堂、校历、清单等卡片。</p>
+        </div>
 
-          <label>
-            <span>身份</span>
-            <select id="roleSelect">
-              <option value="student">新生</option>
-              <option value="parent">家长</option>
-            </select>
-          </label>
+        <section class="workspace">
+          <aside class="profile-panel" aria-label="个人信息">
+            <div class="panel-header">
+              <h2>个人信息</h2>
+              <p>用于路线、食堂和入学事项的个性化推荐。</p>
+            </div>
 
-          <label>
-            <span>校区</span>
-            <input id="campus" placeholder="闵行校区" />
-          </label>
-          <label>
-            <span>学院</span>
-            <input id="college" placeholder="电子信息与电气工程学院" />
-          </label>
-          <label>
-            <span>专业</span>
-            <input id="major" placeholder="计算机科学与技术" />
-          </label>
-          <label>
-            <span>宿舍区域</span>
-            <input id="dormArea" placeholder="东区" />
-          </label>
+            <label>
+              <span>身份</span>
+              <select id="roleSelect">
+                <option value="student">新生</option>
+                <option value="parent">家长</option>
+              </select>
+            </label>
 
-          <div class="quick-prompts" aria-label="快捷问题">
-            <button type="button" class="prompt-chip" data-prompt="包图怎么走">
-              包图怎么走
+            <label>
+              <span>校区</span>
+              <input id="campus" placeholder="闵行校区" />
+            </label>
+            <label>
+              <span>学院</span>
+              <input id="college" placeholder="电子信息与电气工程学院" />
+            </label>
+            <label>
+              <span>专业</span>
+              <input id="major" placeholder="计算机科学与技术" />
+            </label>
+            <label>
+              <span>宿舍区域</span>
+              <input id="dormArea" placeholder="东区" />
+            </label>
+
+            <button id="locateButton" type="button" class="secondary-button locate-button">
+              获取当前位置
             </button>
-            <button type="button" class="prompt-chip" data-prompt="推荐一个现在不太挤的食堂">
-              推荐食堂
-            </button>
-            <button type="button" class="prompt-chip" data-prompt="新生入学前要准备什么？">
-              入学准备
-            </button>
-          </div>
-        </aside>
 
-        <section class="chat-panel" aria-label="聊天">
-          <div id="chatLog" class="chat-log"></div>
+            <div class="quick-prompts" aria-label="聊天区快捷问题">
+              <button type="button" class="prompt-chip" data-prompt="包图怎么走">包图怎么走</button>
+              <button type="button" class="prompt-chip" data-prompt="推荐一个现在不太挤的食堂">推荐食堂</button>
+              <button type="button" class="prompt-chip" data-prompt="新生入学前要准备什么？">入学准备</button>
+            </div>
+          </aside>
 
-          <div class="composer">
-            <textarea
-              id="message"
-              placeholder="问问入学准备、家长陪同、校园路线、食堂推荐、政策材料..."
-            ></textarea>
-            <div class="composer-actions">
-              <div id="error" class="error"></div>
-              <div class="button-row">
-                <select id="modelSelect" class="model-select" aria-label="选择模型">
-                  <option value="deepseek-chat">DeepSeek 常规</option>
-                  <option value="deepseek-reasoner">DeepSeek 思考</option>
-                  <option value="minimax-m2.7">MiniMax-M2.7</option>
-                  <option value="qwen3.6-27b">Qwen3.6-27B</option>
-                </select>
-                <button id="clearButton" type="button" class="secondary-button">
-                  清空对话
-                </button>
-                <button id="sendButton" class="primary-button">发送</button>
+          <section class="chat-panel" aria-label="聊天">
+            <div id="chatLog" class="chat-log"></div>
+
+            <div class="composer">
+              <textarea
+                id="message"
+                placeholder="问问入学准备、家长陪同、校园路线、食堂推荐、政策材料..."
+              ></textarea>
+              <div class="composer-actions">
+                <div id="error" class="error"></div>
+                <div class="button-row">
+                  <select id="modelSelect" class="model-select" aria-label="选择模型">
+                    <option value="deepseek-chat">DeepSeek 常规</option>
+                    <option value="deepseek-reasoner">DeepSeek 思考</option>
+                    <option value="minimax-m2.7">MiniMax-M2.7</option>
+                    <option value="qwen3.6-27b">Qwen3.6-27B</option>
+                  </select>
+                  <button id="clearButton" type="button" class="secondary-button">
+                    清空对话
+                  </button>
+                  <button id="sendButton" class="primary-button">发送</button>
+                </div>
               </div>
             </div>
-          </div>
+          </section>
         </section>
       </section>
+
+      <footer class="site-footer">
+        <p>静态官方资料由维护者更新到服务器本地，实时路线和食堂拥挤度会按需调用外部服务。</p>
+      </footer>
     </main>
 
     <script src="./config.js"></script>
-    <script src="./app.js?v=20260715-model-inline"></script>
+    <script src="./app.js?v=20260716-home"></script>
   </body>
 </html>

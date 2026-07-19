@@ -142,6 +142,9 @@
               </view>
 
               <view wx:elif="{{card.type === 'dining' || card.type === 'food_recommendation'}}">
+                <view wx:if="{{card.data.fallback_reason}}" class="meta">
+                  {{card.data.fallback_reason}}，先按本地食堂信息推荐。
+                </view>
                 <block wx:for="{{card.data.recommendations}}" wx:for-item="rec" wx:key="index">
                   <view class="dining-row">
                     <view class="source-title">{{index + 1}}. {{rec.canteen.name}}</view>
