@@ -5,7 +5,11 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, Request
 
-from app.integrations.feishu import handle_message_event, is_url_verification
+from app.integrations.feishu import (
+    handle_message_event,
+    is_card_action_callback,
+    is_url_verification,
+)
 
 
 router = APIRouter()
@@ -29,7 +33,7 @@ async def feishu_events(
         return {}
 
     try:
-        if is_url_verification(payload):
+        if is_url_verification(payload) or is_card_action_callback(payload):
             return handle_message_event(payload)
 
         background_tasks.add_task(handle_message_event, payload)

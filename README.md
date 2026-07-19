@@ -163,9 +163,29 @@ https://你的域名/api/feishu/events
 ```
 
 4. 订阅接收消息事件 `im.message.receive_v1`。
-5. 给应用开通发送/回复消息所需权限，并在发布或测试企业内启用机器人。
+5. 如果需要 checklist 在飞书卡片里可勾选，还需要启用卡片交互回调事件 `card.action.trigger`，回调地址同样使用 `/api/feishu/events`。
+6. 给应用开通发送/回复消息所需权限，并在发布或测试企业内启用机器人。
 
-飞书端当前先做文本回复版：路线、校历、食堂、checklist、参观路线等 cards 会被转换成适合飞书阅读的文字、路线顺序和链接。Web 端仍保留完整地图和交互卡片。
+飞书端会优先把路线、校历、食堂、checklist、参观路线等 cards 转成飞书 interactive 消息卡片；如果飞书卡片接口失败，会自动降级为文字、路线顺序和链接。Web 端仍保留完整地图和交互卡片。
+
+飞书端额外支持几个轻量命令：
+
+- `帮助`：查看常见问法和入口。
+- `设置`：在飞书卡片内选择新生/家长身份、默认校区和默认模型。
+- `清空对话`：清空当前飞书会话上下文。
+
+也可以在飞书开放平台配置机器人菜单，把常用入口放到聊天窗口里。菜单事件需要订阅 `application.bot.menu_v6`，回调地址仍然使用 `/api/feishu/events`。建议菜单项 `event_key`：
+
+- `help`：打开帮助卡片。
+- `settings`：打开个人设置卡片。
+- `checklist`：生成新生报到清单。
+- `calendar`：查询校历。
+- `dining`：推荐食堂。
+- `tour`：推荐校园参观路线。
+- `parent`：生成家长陪同报到建议。
+- `clear`：清空菜单会话上下文。
+
+Checklist 在飞书端使用按钮式勾选，勾选状态按飞书用户保存在 `data/feishu/checklist_state.json`；飞书个人设置保存在 `data/feishu/user_settings.json`；飞书食堂偏好保存在 `data/feishu/dining_preferences.json`；回答反馈保存在 `data/feishu/feedback.json`。这些都是运行时数据，已经通过 `.gitignore` 忽略。
 
 注意：飞书事件回调需要快速返回，项目中普通消息事件会放入 FastAPI 后台任务处理；URL 校验 challenge 会同步返回。
 
