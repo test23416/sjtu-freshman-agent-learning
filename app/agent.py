@@ -1,5 +1,5 @@
 from app.knowledge_base import search_knowledge
-from app.llm import generate_answer, plan_tool_use
+from app.llm import classify_visit_type, generate_answer, plan_tool_use
 from app.schemas import ChatRequest, ChatResponse
 from app.tools.calendar import run_calendar_tools
 from app.tools.checklist import run_checklist_tools
@@ -7,7 +7,7 @@ from app.tools.dining import run_dining_tools
 from app.tools.official import run_official_tools
 from app.tools.parent import run_parent_tools
 from app.tools.places import run_place_tools
-from app.tools.tours import run_tour_tools
+from app.tools.tours import is_tour_intent, run_tour_tools
 
 
 def merge_parent_contexts(results: list[dict], question: str) -> list[dict]:
@@ -67,9 +67,15 @@ def build_tour_answer(tour_result: dict) -> str:
     card = tour_result["cards"][0]
     data = card["data"]
     stop_count = len(data.get("stops", []))
+    visit_type = data.get("visit_type")
+    prefix = {
+        "freshman_orientation": "如果是第一次来交大、想先熟悉校园，",
+        "scenic_tour": "如果主要想拍照打卡、看校园景观，",
+        "parent_visit": "如果是家长陪同报到、想看看孩子未来的学习生活环境，",
+    }.get(visit_type, "")
 
     return (
-        f"可以走这条路线：{data.get('title')}，预计用时 {data.get('duration')}，"
+        f"{prefix}可以走这条路线：{data.get('title')}，预计用时 {data.get('duration')}，"
         f"一共 {stop_count} 个点位。下面卡片里按顺序列出了每一站；有坐标的点位也会在地图上连成参观路线。"
     )
 
@@ -134,7 +140,17 @@ def chat_with_agent(request: ChatRequest) -> ChatResponse:
     parent_result = run_parent_tools(request.message, profile=request.profile)
     tool_results.extend(parent_result["tool_results"])
 
-    tour_result = run_tour_tools(request.message, profile=request.profile)
+    visit_type = (
+        classify_visit_type(
+            request.message,
+            history=request.history,
+            profile=request.profile,
+            model=request.model,
+        )
+        if is_tour_intent(request.message)
+        else None
+    )
+    tour_result = run_tour_tools(request.message, profile=request.profile, visit_type=visit_type)
     tool_results.extend(tour_result["tool_results"])
 
     if tour_result["cards"]:

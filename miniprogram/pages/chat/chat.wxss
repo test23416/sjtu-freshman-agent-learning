@@ -143,6 +143,10 @@
   font-size: 24rpx;
 }
 
+.meta.compact {
+  margin-top: 0;
+}
+
 .url {
   margin-top: 10rpx;
   padding: 12rpx;
@@ -253,6 +257,24 @@
   color: #a15c07;
   font-size: 24rpx;
   line-height: 1.5;
+}
+
+.tour-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-bottom: 12rpx;
+}
+
+.tag {
+  flex: 0 0 auto;
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  background: rgba(31, 111, 235, 0.12);
+  color: #1f6feb;
+  font-size: 22rpx;
+  font-weight: 800;
 }
 
 .tour-row {

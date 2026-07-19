@@ -17,6 +17,7 @@ MODEL_OPTIONS = {
     "qwen": "qwen",
     "qwen3.6-27b": "qwen3.6-27b",
 }
+VISIT_TYPES = {"freshman_orientation", "scenic_tour", "parent_visit", "unknown"}
 
 
 def resolve_model(model: str | None = None) -> str:
@@ -121,6 +122,7 @@ def build_prompt(
 
 内容要求：
 - 不要编造日期、地点、政策细节、费用、电话或联系人。
+- 回答校园参观相关问题时，先判断用户参观目的：新生熟悉校园、游客景点打卡、家长陪同入学参观，按目的选择路线，不要默认所有参观需求都是游客路线。
 - 如果工具结果里有 dining_tool 的食堂推荐，即使实时拥挤度或历史偏好暂未获取，也要基于工具给出的本地食堂知识库推荐明确回答。
 - 回答食堂问题时，请区分依据来源：有实时拥挤度就说明实时依据；没有实时拥挤度时说明“先按本地食堂知识库和已记录偏好推荐”。
 - 如果工具结果里有 parent_tool，请结合家长陪同报到清单给出家长视角建议。
@@ -186,6 +188,91 @@ def generate_answer(
     except Exception:
         logger.exception("LLM 调用失败，已使用 fallback 回答: model=%s", selected_model)
         return generate_fallback_answer(question, contexts, profile=profile), False
+
+
+def fallback_visit_type(question: str, profile=None) -> str:
+    if profile_role(profile) == "parent":
+        if any(word in question for word in ["拍照", "打卡", "景点", "风景", "游客", "朋友"]):
+            return "scenic_tour"
+        return "parent_visit"
+    if any(word in question for word in ["家长", "送孩子", "陪同", "孩子", "接送"]):
+        return "parent_visit"
+    if any(word in question for word in ["拍照", "打卡", "景点", "风景", "游客", "朋友", "好看"]):
+        return "scenic_tour"
+    if any(word in question for word in ["第一次", "新生", "熟悉", "了解", "开学", "入校", "校园"]):
+        return "freshman_orientation"
+    return "unknown"
+
+
+def classify_visit_type(
+    question: str,
+    history: list = None,
+    profile=None,
+    model: str | None = None,
+) -> str:
+    if not OPENAI_API_KEY:
+        return fallback_visit_type(question, profile=profile)
+
+    selected_model = resolve_model(model)
+    history = history or []
+    history_text = "\n".join(f"{item.role}: {item.content}" for item in history[-6:])
+    profile_text = profile.model_dump_json(exclude_none=True) if profile else "无"
+
+    prompt = f"""
+你是上海交通大学新生助手的参观目的分类器。请根据用户问题、历史对话和用户身份，判断校园参观需求的 visit_type。
+
+visit_type 只能是：
+- freshman_orientation：新生第一次入校，想熟悉教学楼、图书馆、食堂、宿舍、学生服务等日常学习生活地点。
+- scenic_tour：游客、朋友来访、拍照打卡、校园景点、风景和校史建筑游览。
+- parent_visit：家长送孩子报到或陪同入学，想了解学院、宿舍生活区、食堂、校园环境、安全支持等。
+- unknown：参观目的不明确。
+
+判断规则：
+- 不要默认所有“参观路线”都是游客路线。
+- “第一次来交大，想熟悉/了解校园”优先 freshman_orientation。
+- “拍照、打卡、景点、风景、游客、带朋友逛”优先 scenic_tour。
+- “家长、送孩子、陪同报到、看看孩子未来环境”优先 parent_visit。
+- 若 profile.role 是 parent 且问题没有明显游客拍照意图，优先 parent_visit。
+
+只输出 JSON：
+{{"visit_type":"freshman_orientation|scenic_tour|parent_visit|unknown"}}
+
+历史对话：
+{history_text or "无"}
+
+用户资料：
+{profile_text}
+
+最新用户问题：
+{question}
+"""
+
+    try:
+        response = httpx.post(
+            f"{OPENAI_BASE_URL.rstrip('/')}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENAI_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": selected_model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0,
+            },
+            timeout=8,
+        )
+        response.raise_for_status()
+        data = response.json()
+        parsed = extract_json_object(data["choices"][0]["message"]["content"])
+    except Exception:
+        logger.exception("参观目的分类 LLM 调用失败，已使用本地规则: model=%s", selected_model)
+        return fallback_visit_type(question, profile=profile)
+
+    visit_type = parsed.get("visit_type") if isinstance(parsed, dict) else None
+    if visit_type in VISIT_TYPES:
+        return visit_type
+
+    return fallback_visit_type(question, profile=profile)
 
 
 def extract_json_object(text: str) -> dict | None:

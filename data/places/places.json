@@ -55,6 +55,39 @@
     "tags": ["校门", "入口", "导航", "接送"]
   },
   {
+    "id": "siyuan_lake",
+    "name": "思源湖",
+    "aliases": ["思源湖景区", "思源湖畔", "思源湖边"],
+    "campus": "闵行校区",
+    "category": "校园景观",
+    "lng": null,
+    "lat": null,
+    "description": "闵行校区常见校园景观和散步拍照点。具体游览动线以现场开放情况为准。",
+    "tags": ["景观", "拍照", "打卡", "散步"]
+  },
+  {
+    "id": "sakura_avenue",
+    "name": "樱花大道",
+    "aliases": ["樱花路", "樱花打卡点", "樱花季路线"],
+    "campus": "闵行校区",
+    "category": "校园景观",
+    "lng": null,
+    "lat": null,
+    "description": "季节性校园景观打卡点，花期和景观效果受天气影响。",
+    "tags": ["景观", "拍照", "打卡", "樱花"]
+  },
+  {
+    "id": "campus_feature_buildings",
+    "name": "校园特色建筑",
+    "aliases": ["特色建筑", "校史建筑", "代表性建筑"],
+    "campus": "闵行校区",
+    "category": "校园景观",
+    "lng": null,
+    "lat": null,
+    "description": "用于校园景点路线中的概括性站点，具体可结合现场开放情况和用户兴趣调整。",
+    "tags": ["景观", "校史", "拍照", "参观"]
+  },
+  {
     "id": "seiee_building",
     "name": "电院楼群",
     "aliases": ["电院", "电子信息与电气工程学院", "SEIEE"],

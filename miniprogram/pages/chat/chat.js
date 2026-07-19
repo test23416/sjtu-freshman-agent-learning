@@ -181,6 +181,15 @@ function buildTourMapData(card) {
   };
 }
 
+function tourTypeLabel(visitType) {
+  return {
+    freshman_orientation: "新生熟悉",
+    scenic_tour: "景点打卡",
+    parent_visit: "家长参观",
+    unknown: "校园参观"
+  }[visitType] || "校园参观";
+}
+
 Page({
   currentRequestTask: null,
   cancelRequested: false,
@@ -434,6 +443,7 @@ Page({
       }
 
       if (next.type === "campus_tour") {
+        next.data.visit_type_label = tourTypeLabel(next.data.visit_type);
         next.data.tour_map = buildTourMapData(next);
       }
 

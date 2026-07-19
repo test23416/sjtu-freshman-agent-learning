@@ -22,7 +22,17 @@ TOUR_WORDS = [
     "走走校园",
     "带家长看看",
     "家长参观",
+    "拍照",
+    "打卡",
+    "景点",
+    "风景",
+    "游客",
+    "朋友来",
+    "看看学校",
+    "看看校园",
+    "看看学校环境",
 ]
+VISIT_TYPES = {"freshman_orientation", "scenic_tour", "parent_visit", "unknown"}
 
 
 def is_tour_intent(question: str) -> bool:
@@ -58,7 +68,23 @@ def normalize_campus(campus: str | None) -> str:
     return ""
 
 
-def select_tour(question: str, profile: StudentProfile | None = None) -> dict[str, Any] | None:
+def infer_visit_type_from_text(question: str, profile: StudentProfile | None = None) -> str:
+    if any(word in question for word in ["家长", "送孩子", "陪同", "报到", "孩子", "接送"]):
+        return "parent_visit"
+    if any(word in question for word in ["拍照", "打卡", "景点", "风景", "游客", "朋友", "好看"]):
+        return "scenic_tour"
+    if any(word in question for word in ["新生", "第一次", "熟悉", "了解", "开学", "入校", "校园"]):
+        return "freshman_orientation"
+    if profile and profile.role == "parent":
+        return "parent_visit"
+    return "unknown"
+
+
+def select_tour(
+    question: str,
+    profile: StudentProfile | None = None,
+    visit_type: str | None = None,
+) -> dict[str, Any] | None:
     tours = load_tours()
     if not tours:
         return None
@@ -66,11 +92,18 @@ def select_tour(question: str, profile: StudentProfile | None = None) -> dict[st
     role = profile.role if profile else "student"
     if any(word in question for word in ["家长", "送孩子", "陪同"]):
         role = "parent"
+    selected_visit_type = visit_type if visit_type in VISIT_TYPES else infer_visit_type_from_text(question, profile)
+    if selected_visit_type == "unknown":
+        selected_visit_type = "parent_visit" if role == "parent" else "freshman_orientation"
     campus_hint = normalize_campus(profile.campus if profile else None) or normalize_campus(question) or "闵行"
 
     def score(tour: dict[str, Any]) -> int:
         value = 0
+        if tour.get("visit_type") == selected_visit_type:
+            value += 200
         if tour.get("audience") == role:
+            value += 100
+        if selected_visit_type == "scenic_tour" and tour.get("audience") == "visitor":
             value += 100
         if campus_hint and campus_hint in normalize_campus(tour.get("campus")):
             value += 50
@@ -125,6 +158,7 @@ def build_tour_card_data(tour: dict[str, Any]) -> dict[str, Any]:
         "title": tour.get("title"),
         "campus": tour.get("campus"),
         "audience": tour.get("audience"),
+        "visit_type": tour.get("visit_type"),
         "duration": tour.get("duration"),
         "description": tour.get("description"),
         "stops": stops,
@@ -135,11 +169,13 @@ def build_tour_card_data(tour: dict[str, Any]) -> dict[str, Any]:
 def run_tour_tools(
     question: str,
     profile: StudentProfile | None = None,
+    visit_type: str | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     if not is_tour_intent(question):
         return {"tool_results": [], "cards": []}
 
-    tour = select_tour(question, profile)
+    selected_visit_type = visit_type if visit_type in VISIT_TYPES else infer_visit_type_from_text(question, profile)
+    tour = select_tour(question, profile, visit_type=selected_visit_type)
     if not tour:
         return {
             "tool_results": [
@@ -160,6 +196,7 @@ def run_tour_tools(
                 "name": "campus_tour_tool",
                 "content": (
                     f"已推荐校园参观路线：{data['title']}。\n"
+                    f"参观目的：{data.get('visit_type') or selected_visit_type}。\n"
                     f"适用人群：{data.get('audience')}；预计用时：{data.get('duration')}。\n"
                     f"站点顺序：{stop_names}"
                 ),

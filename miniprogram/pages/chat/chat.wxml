@@ -109,6 +109,10 @@
               </view>
 
               <view wx:elif="{{card.type === 'campus_tour'}}">
+                <view class="tour-head">
+                  <view class="tag">{{card.data.visit_type_label || '校园参观'}}</view>
+                  <view class="meta compact">{{card.data.campus}} · {{card.data.duration}}</view>
+                </view>
                 <map
                   wx:if="{{card.data.tour_map && card.data.tour_map.can_draw}}"
                   class="route-map"
@@ -122,7 +126,6 @@
                   {{card.data.tour_map.message}}
                 </view>
                 <view class="desc">{{card.data.description}}</view>
-                <view class="meta">{{card.data.campus}} 路 {{card.data.duration}}</view>
                 <block wx:for="{{card.data.stops}}" wx:for-item="stop" wx:key="index">
                   <view class="tour-row">
                     <view class="tour-index">{{index + 1}}</view>
