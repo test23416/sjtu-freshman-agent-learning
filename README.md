@@ -1,68 +1,94 @@
-# SJTU Freshman Agent Learning
+# 交大新生助手
 
-这是一个面向上海交通大学新生的校园助手项目。当前项目由 FastAPI 后端和原生 HTML/CSS/JS 前端组成，支持新生问答、校园地点导航、食堂推荐、校历查询、入学 checklist 和本地知识库检索。
+面向上海交通大学新生与家长的校园智能助手。项目使用 FastAPI 构建后端，Web 端使用原生 HTML/CSS/JavaScript，小程序端使用微信小程序原生框架。系统结合本地 Markdown 知识库、LLM 综合回答和工具调用，支持入学问答、校园导航、食堂推荐、校历查询、报到清单、家长模式和校园参观路线推荐。
 
-## 主要功能
+## 功能概览
 
-- 新生问答：检索 `data/knowledge/` 下的 Markdown 知识库，回答入学准备、校园生活等问题。
-- LLM 驱动工具使用：后端先让模型判断是否需要调用地图、食堂等工具，再把工具结果交给模型组织回答。
-- 校园地图与路线：支持“包图怎么走”“从宿舍到图书馆怎么去”等问题，前端会在需要时把浏览器定位传给后端。
-- 食堂推荐：结合本地食堂知识库、campuslife 实时拥挤度接口和浏览器保存的用户偏好。
-- 离线官方资料：校历、checklist、新生手册等低频更新资料由维护者定期更新到 `data/`，用户查询时直接读取本地数据。
-- 前端卡片：路线、地点、食堂、校历和 checklist 都会以结构化卡片展示。
+- 新生问答：检索 `data/knowledge/` 下的本地知识库，回答报到、材料、缴费、校园生活等问题。
+- LLM 驱动工具：由模型判断是否需要调用地图、食堂等工具，再结合工具结果生成自然回答。
+- 校园导航：支持“包图怎么走”“从当前位置到一餐怎么走”等问题，可结合定位、上下文和地点别名补全起终点。
+- 食堂推荐：结合本地食堂资料、campuslife 实时拥挤度接口和用户历史偏好进行推荐。
+- 校历查询：用户索要校历文件时返回 calendar card；询问假期、考试周等内容时从本地文字版校历回答。
+- 新生 checklist：读取本地 JSON，前端支持勾选状态保存。
+- 家长模式：回答更关注陪同报到、交通接送、住宿生活、安全医疗、缴费防诈骗和孩子适应大学。
+- 校园参观路线：按参观目的区分新生熟悉路线、游客景点打卡路线、家长陪同参观路线。
+- 多端展示：Web 前端和微信小程序都支持基础聊天和主要 cards 展示。
 
-## 项目结构
+## 技术架构
 
 ```text
 .
-├── app/                    # FastAPI 后端
-│   ├── main.py             # 应用入口，托管 frontend 静态页面
-│   ├── routes.py           # /health、/api/chat、/api/search
-│   ├── agent.py            # Agent 编排层
-│   ├── llm.py              # LLM 调用与工具规划
-│   ├── knowledge_base.py   # 本地 Markdown 知识库检索
-│   ├── schemas.py          # 请求/响应模型
-│   └── tools/              # 工具层
-│       ├── calendar.py     # 离线校历资料读取
-│       ├── checklist.py    # 离线新生 checklist 读取
-│       ├── places.py       # 校园地点识别与路线补全
-│       ├── amap.py         # 高德地图 Web Service 调用
-│       ├── dining.py       # 食堂推荐与实时拥挤度
-│       └── official.py     # 其他官方信息类工具
+├── app/                         # FastAPI 后端
+│   ├── main.py                  # 应用入口、静态文件托管、全局异常处理
+│   ├── routes.py                # /health、/api/chat、/api/search
+│   ├── agent.py                 # Agent 编排：RAG、工具、LLM 回答
+│   ├── llm.py                   # LLM 调用、工具规划、参观目的分类
+│   ├── knowledge_base.py        # 本地 Markdown/文本知识库检索
+│   ├── schemas.py               # 请求和响应模型
+│   └── tools/                   # 工具层
+│       ├── amap.py              # 高德 POI 与步行路线
+│       ├── calendar.py          # 离线校历配置读取
+│       ├── checklist.py         # 新生 checklist
+│       ├── dining.py            # 食堂推荐与拥挤度
+│       ├── parent.py            # 家长 checklist
+│       ├── places.py            # 地点识别、别名、路线补全
+│       └── tours.py             # 校园参观路线
 ├── data/
-│   ├── raw/                # 原始 PDF 或官方下载文件
-│   ├── knowledge/          # PDF 转换后的 Markdown，用于 RAG
-│   ├── official/           # 校历等官方结构化配置
-│   ├── checklists/         # checklist JSON
-│   ├── places/             # 校园地点本地库
-│   └── dining/             # 食堂本地知识库
-├── frontend/
+│   ├── raw/                     # 原始 PDF 或官方下载文件
+│   ├── knowledge/               # Markdown/文本知识库，用于 RAG
+│   ├── official/                # 校历等结构化官方配置
+│   ├── checklists/              # checklist JSON
+│   ├── places/                  # 地点坐标、别名、校区
+│   ├── dining/                  # 食堂静态资料
+│   └── tours/                   # 校园参观路线配置
+├── frontend/                    # Web 前端
 │   ├── index.html
 │   ├── style.css
 │   ├── app.js
-│   └── config.js           # 本地前端配置，可参考 config_example.js
+│   └── config.js
+├── miniprogram/                 # 微信小程序前端
 ├── scripts/
-│   ├── import_pdf_handbook.py
-│   └── update_calendar_config.py
-└── requirement.txt
+│   ├── import_pdf_handbook.py   # PDF 新生手册转 Markdown
+│   ├── update_calendar_config.py# 离线更新校历配置/下载校历
+│   └── sync_miniprogram_appid.py
+├── requirements.txt
+└── requirement.txt              # 兼容旧命令，内容与 requirements.txt 保持一致
 ```
 
-## 运行方式
+## 环境要求
+
+- Python 3.10+
+- 一个 OpenAI 兼容格式的大模型 API
+- 高德 Web Service Key，可选；未配置时路线和 POI 能力会降级
+- campuslife 食堂拥挤度接口，可选；不可用时使用本地食堂资料降级推荐
 
 安装依赖：
+
+```powershell
+pip install -r requirements.txt
+```
+
+如果仍使用旧命令，也可以：
 
 ```powershell
 pip install -r requirement.txt
 ```
 
-配置 `.env`：
+## 配置
+
+在项目根目录创建 `.env`：
 
 ```env
-OPENAI_API_KEY=你的 API Key
-OPENAI_BASE_URL=你的模型服务地址
+OPENAI_API_KEY=你的模型 API Key
+OPENAI_BASE_URL=你的模型服务地址，例如 https://example.com/api/v1
 OPENAI_MODEL=deepseek-chat
 AMAP_WEB_SERVICE_KEY=你的高德 Web Service Key
+CAMPUSLIFE_DINING_URL=campuslife 食堂实时拥挤度接口地址
 ```
+
+当前前端支持用户在聊天框旁选择模型，后端仍会用 `.env` 中的 `OPENAI_MODEL` 作为默认模型。
+
+## 启动
 
 启动后端：
 
@@ -70,83 +96,128 @@ AMAP_WEB_SERVICE_KEY=你的高德 Web Service Key
 uvicorn app.main:app --reload
 ```
 
-推荐直接访问后端托管的前端页面：
+访问 Web 前端：
 
 ```text
 http://127.0.0.1:8000/
 ```
 
-## Web 首页
+后端会托管 `frontend/`，建议优先通过后端地址访问，避免直接打开 HTML 时出现“后端未连接”。
 
-Web 前端打开后会先展示“交大新生助手”首页，而不是直接进入纯聊天框。首页包含：
+## Web 前端
 
-- 功能入口：新生问答、校园导航、食堂推荐、校历查询、新生报到清单、家长模式。
-- 快捷问题：例如“包图怎么走”“给我一份新生报到清单”“校历在哪里”“送孩子报到要准备什么”。
-- 聊天助手区：保留身份选择、校区/学院/专业/宿舍信息、模型选择、定位、清空对话和消息列表。
+Web 端首页包含项目介绍、功能入口、快捷问题和聊天区。聊天区支持：
 
-点击首页或聊天区的快捷问题按钮后，前端会自动滚动到聊天区并复用原有 `sendMessage()` 流程调用 `/api/chat`。路线、食堂、校历、checklist、家长模式等 cards 渲染逻辑保持不变。
+- 身份选择：新生 / 家长
+- 模型选择
+- 校区、学院、专业、宿舍等 profile 信息
+- 浏览器定位
+- 中止回答
+- 清空对话
+- cards 渲染：route、place、food、calendar、checklist、parent_checklist、campus_tour
 
-## 官方资料离线更新流程
+快捷问题会复用原有 `sendMessage()` 流程，不单独绕开 `/api/chat`。
 
-低频更新资料不要在用户查询时实时抓取官网。维护者应定期更新 `data/` 目录，更新后重启后端，或按项目实际部署方式触发知识库重新加载。
+## 微信小程序
 
-新生手册：
+小程序目录位于 `miniprogram/`，通过 `wx.request` 调用现有 FastAPI `/api/chat`。当前支持：
+
+- 基础聊天
+- 定位并传给后端
+- 模型选择
+- route card 的小程序 `<map>` 展示
+- 食堂推荐和“导航过去”
+- calendar、checklist、parent_checklist、campus_tour 基础展示
+
+本地开发时请在微信开发者工具中打开 `miniprogram/`，并把小程序端 API 地址指向正在运行的 FastAPI 服务。
+
+## 本地知识库与数据维护
+
+低频官方资料采用离线维护机制：维护者定期更新 `data/`，用户查询时直接读取服务器本地资料，不在每次请求时实时抓学校官网。
+
+### 新生手册
+
+把 PDF 放入 `data/raw/` 后运行：
 
 ```powershell
-# 1. 把 PDF 放入 data/raw/
-# 2. 批量转换为 Markdown
 py scripts/import_pdf_handbook.py --all --overwrite
 ```
 
-生成的 Markdown 会写入 `data/knowledge/`，用于后端 RAG 检索。
+脚本会把 PDF 转成 `data/knowledge/*.md`，供 RAG 检索。PDF 转换依赖 `pypdf`。
 
-校历：
+### 校历
 
-维护校历时建议同时放两份本地资料：
+建议维护两份资料：
 
 ```text
-data/raw/2026_calendar.pdf
-data/knowledge/2026_calendar_text
+data/raw/年份_calendar.pdf
+data/knowledge/年份_calendar_text
 ```
 
-可以手动下载并按这个名字放入 `data/raw/`，也可以让维护脚本自动去教务处校历页匹配并下载：
+用户明确索要校历文件，例如“给我校历”“校历在哪里”，系统优先返回本地 PDF card。用户询问校历内容，例如“国庆放几天”“寒假什么时候”，系统从文字版校历中检索回答。
+
+可手动维护 `data/official/calendar_2025_2026.json` 等年度结构化配置，也可使用脚本自动从教务处校历页匹配下载：
 
 ```powershell
 py scripts/update_calendar_config.py --auto --download --calendar-year 2026 --school-year "2026-2027" --overwrite
 ```
 
-脚本会把官网资源下载到 `data/raw/2026_calendar.pdf`，并把 `data/official/calendar.json` 的 `local_file` 更新为对应本地文件。如果官网资源是图片格式，脚本会尝试转换成 PDF；没有转换依赖时会提示安装 Pillow。
+如果官网资源是图片，脚本会尝试用 Pillow 转为 PDF。
 
-用户明确索要校历文件时，例如“给我校历”“校历在哪里”“打开 2026 校历”，后端会优先返回 `data/raw/年份_calendar.pdf` 对应的 calendar card，前端可直接打开 PDF。
+### Checklist
 
-用户询问校历内容时，例如“国庆放几天”“寒假什么时候开始”“考试周是哪几周”，后端不会直接返回 PDF，而是从 `data/knowledge/年份_calendar_text` 这类文字版校历中检索并回答。该文字版可以没有 `.md` 后缀，也可以使用 `.md`、`.txt` 或 `.text`。
-
-`data/official/calendar.json` 仍可作为没有本地 PDF 时的备用链接配置；维护者也可以继续使用 `scripts/update_calendar_config.py` 更新该备用配置。
-
-Checklist：
-
-维护者直接编辑：
+新生清单：
 
 ```text
 data/checklists/freshman_checklist.json
 ```
 
-用户问“清单、准备什么、要带什么、入学准备、报到准备、报到当天、开学前、手续”等问题时，后端读取本地 checklist 并返回 checklist card。前端会用 localStorage 保存每个浏览器的勾选状态。
+家长清单：
 
-## 数据来源
+```text
+data/checklists/parent_checklist.json
+```
 
-- `data/knowledge/`：本地 Markdown 知识库，主要来自新生手册和维护者整理资料。
-- `data/official/calendar.json`：服务器端维护的官方校历副本或链接。
-- `data/checklists/freshman_checklist.json`：服务器端维护的新生入学 checklist。
-- `data/places/campus_places.json`：校园地点本地库，用于地点识别、别名匹配和路线补全。
+前端会在本地保存勾选状态，后端只负责返回稳定的清单数据。
+
+### 地点、食堂和参观路线
+
+- `data/places/places.json`：地点坐标、别名、校区、分类。
 - `data/dining/canteens.json`：食堂静态知识库。
-- campuslife 接口：运行时获取食堂实时拥挤度。
-- 高德地图 API：运行时获取 POI 和步行路线。
+- `data/official/canteens.json`：整理后的食堂结构化资料。
+- `data/tours/campus_tours.json`：校园参观路线配置。
+- `data/knowledge/campus_routes.md`：参观路线分类知识库。
 
-静态官方资料使用本地数据；实时信息如食堂拥挤度和路线规划可以继续调用外部 API。
+## 降级策略
 
-## 家长模式
+项目对外部服务失败做了友好降级：
 
-前端侧栏可以选择“新生”或“家长”身份。选择家长后，后端会在 prompt 中加入家长视角说明，回答会更关注报到陪同、交通接送、住宿生活、安全医疗、缴费防诈骗和孩子适应大学等内容。
+- LLM 调用失败：回退到本地 fallback 回答，`used_llm=false`。
+- 知识库为空或文件损坏：跳过异常文件，不影响工具 card。
+- 高德失败：如果已识别目的地，返回地点或路线 fallback card。
+- 食堂实时拥挤度失败：使用本地食堂知识库推荐。
+- 校历/checklist 缺失：返回友好提示，不暴露 traceback。
+- Web/小程序请求失败：显示“暂时连接不上服务，请稍后再试。”
 
-家长陪同报到清单来自 `data/checklists/parent_checklist.json`，会以前端 `parent_checklist` 卡片展示并支持勾选。家长常见问题知识库来自 `data/knowledge/parent_faq.md`。涉及具体政策、时间、费用、电话或现场安排时，仍应以学校和学院最新官方通知为准。
+## 测试建议
+
+启动后端后可以尝试：
+
+```text
+包图怎么走
+从当前位置到一餐怎么走
+推荐几个食堂，导航到那里去
+给我一份新生报到清单
+校历在哪里
+国庆放几天
+送孩子报到要准备什么
+第一次来上海交大，想了解一下校园，怎么参观？
+交大有哪些适合拍照打卡的地方？
+我是新生家长，送孩子报到想提前看看学校
+```
+
+## 注意事项
+
+- 不要把真实 API Key、微信 AppID 等敏感信息提交到仓库。
+- 具体政策、日期、费用、电话和现场安排应以学校或学院最新官方通知为准。
+- 静态官方资料通过 `data/` 离线维护；实时信息如路线规划、食堂拥挤度可以继续调用外部 API。
