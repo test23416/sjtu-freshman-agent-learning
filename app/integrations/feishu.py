@@ -196,6 +196,74 @@ def sender_id_from_event(event: dict[str, Any]) -> str:
     )
 
 
+def receive_target_from_event(event: dict[str, Any]) -> tuple[str, str]:
+    sender = event.get("sender") or {}
+    sender_id = sender.get("sender_id") or {}
+    if sender_id.get("user_id"):
+        return sender_id["user_id"], "user_id"
+    if sender_id.get("open_id"):
+        return sender_id["open_id"], "open_id"
+    if sender_id.get("union_id"):
+        return sender_id["union_id"], "union_id"
+
+    operator = event.get("operator") or {}
+    if operator.get("user_id"):
+        return operator["user_id"], "user_id"
+    if operator.get("open_id"):
+        return operator["open_id"], "open_id"
+
+    return "anonymous", "open_id"
+
+
+def sender_id_types_from_event(event: dict[str, Any]) -> list[str]:
+    sender = event.get("sender") or {}
+    sender_id = sender.get("sender_id") or {}
+    return [key for key in ["user_id", "open_id", "union_id"] if sender_id.get(key)]
+
+
+def short_debug_id(value: Any) -> str:
+    text = str(value or "")
+    if len(text) <= 12:
+        return text
+    return f"{text[:6]}...{text[-4:]}"
+
+
+def log_event_diagnostics(
+    payload: dict[str, Any],
+    event: dict[str, Any],
+    message: dict[str, Any],
+    fallback_receive_id: str,
+    fallback_receive_id_type: str,
+) -> None:
+    header = payload.get("header") or {}
+    sender = event.get("sender") or {}
+    sender_id = sender.get("sender_id") or {}
+
+    logger.warning(
+        "飞书事件诊断: header_app_id=%s env_app_id=%s tenant_key=%s event_type=%s "
+        "message_id=%s chat_id=%s chat_type=%s sender_id=%s "
+        "fallback_receive_id_type=%s fallback_receive_id=%s",
+        header.get("app_id") or "",
+        FEISHU_APP_ID,
+        header.get("tenant_key") or "",
+        header.get("event_type") or "",
+        message.get("message_id") or "",
+        message.get("chat_id") or "",
+        message.get("chat_type") or "",
+        json.dumps(sender_id, ensure_ascii=False),
+        fallback_receive_id_type,
+        short_debug_id(fallback_receive_id),
+    )
+
+    header_app_id = header.get("app_id")
+    if header_app_id and FEISHU_APP_ID and header_app_id != FEISHU_APP_ID:
+        logger.error(
+            "飞书事件 app_id 与服务器 FEISHU_APP_ID 不一致: header_app_id=%s env_app_id=%s",
+            header_app_id,
+            FEISHU_APP_ID,
+        )
+
+
 def shorten(text: str, limit: int = 180) -> str:
     text = re.sub(r"\s+", " ", text or "").strip()
     if len(text) <= limit:
@@ -711,12 +779,25 @@ def reply_message(message_id: str, msg_type: str, content: dict[str, Any]) -> No
     )
 
     if response.status_code < 200 or response.status_code >= 300:
+        logger.warning(
+            "飞书 reply_message 失败: message_id=%s msg_type=%s status=%s body=%s",
+            message_id,
+            msg_type,
+            response.status_code,
+            response.text,
+        )
         raise RuntimeError(
             f"飞书回复消息 HTTP {response.status_code}: {response.text}"
         )
 
     data = response.json()
     if data.get("code") != 0:
+        logger.warning(
+            "飞书 reply_message 返回异常: message_id=%s msg_type=%s data=%s",
+            message_id,
+            msg_type,
+            data,
+        )
         raise RuntimeError(f"飞书回复消息失败: {data}")
 
 
@@ -744,12 +825,27 @@ def send_message(
     )
 
     if response.status_code < 200 or response.status_code >= 300:
+        logger.warning(
+            "飞书 send_message 失败: receive_id_type=%s receive_id=%s msg_type=%s status=%s body=%s",
+            receive_id_type,
+            short_debug_id(receive_id),
+            msg_type,
+            response.status_code,
+            response.text,
+        )
         raise RuntimeError(
             f"飞书发送消息 HTTP {response.status_code}: {response.text}"
         )
 
     data = response.json()
     if data.get("code") != 0:
+        logger.warning(
+            "飞书 send_message 返回异常: receive_id_type=%s receive_id=%s msg_type=%s data=%s",
+            receive_id_type,
+            short_debug_id(receive_id),
+            msg_type,
+            data,
+        )
         raise RuntimeError(f"飞书发送消息失败: {data}")
 
 
@@ -776,30 +872,54 @@ def send_interactive(
 def safe_reply_text(
     message_id: str,
     text: str,
+    fallback_chat_id: str | None = None,
     fallback_receive_id: str | None = None,
+    fallback_receive_id_type: str = "open_id",
 ) -> bool:
     try:
         reply_text(message_id, text)
         return True
     except Exception:
         logger.exception("飞书回复消息失败")
+        if fallback_chat_id and safe_send_text(
+            fallback_chat_id,
+            text,
+            receive_id_type="chat_id",
+        ):
+            return True
         if fallback_receive_id:
-            return safe_send_text(fallback_receive_id, text)
+            return safe_send_text(
+                fallback_receive_id,
+                text,
+                receive_id_type=fallback_receive_id_type,
+            )
         return False
 
 
 def safe_reply_interactive(
     message_id: str,
     card: dict[str, Any],
+    fallback_chat_id: str | None = None,
     fallback_receive_id: str | None = None,
+    fallback_receive_id_type: str = "open_id",
 ) -> bool:
     try:
         reply_interactive(message_id, card)
         return True
     except Exception:
         logger.exception("飞书卡片回复失败")
+        if fallback_chat_id and safe_send_interactive(
+            fallback_chat_id,
+            card,
+            receive_id_type="chat_id",
+        ):
+            return True
         if fallback_receive_id:
-            return safe_send_interactive(fallback_receive_id, card)
+            return safe_send_interactive(
+                fallback_receive_id,
+                card,
+                receive_id_type=fallback_receive_id_type,
+            )
         return False
 
 
@@ -874,19 +994,37 @@ def reply_agent_response(
     cards: list[Any],
     user_id: str | None = None,
     question: str | None = None,
+    fallback_chat_id: str | None = None,
+    fallback_receive_id: str | None = None,
+    fallback_receive_id_type: str = "open_id",
 ) -> None:
     text = answer.strip() or "我整理好了，下面是结果。"
+    reply_fallback_id = fallback_receive_id or user_id
 
     if not cards:
-        safe_reply_text(message_id, text, fallback_receive_id=user_id)
+        safe_reply_text(
+            message_id,
+            text,
+            fallback_chat_id=fallback_chat_id,
+            fallback_receive_id=reply_fallback_id,
+            fallback_receive_id_type=fallback_receive_id_type,
+        )
         safe_reply_interactive(
             message_id,
             build_feedback_card(question or "", answer),
-            fallback_receive_id=user_id,
+            fallback_chat_id=fallback_chat_id,
+            fallback_receive_id=reply_fallback_id,
+            fallback_receive_id_type=fallback_receive_id_type,
         )
         return
 
-    safe_reply_text(message_id, text[:3000], fallback_receive_id=user_id)
+    safe_reply_text(
+        message_id,
+        text[:3000],
+        fallback_chat_id=fallback_chat_id,
+        fallback_receive_id=reply_fallback_id,
+        fallback_receive_id_type=fallback_receive_id_type,
+    )
 
     for card in cards[:3]:
         card_data = card.model_dump() if hasattr(card, "model_dump") else dict(card)
@@ -900,7 +1038,9 @@ def reply_agent_response(
         if interactive and safe_reply_interactive(
             message_id,
             interactive,
-            fallback_receive_id=user_id,
+            fallback_chat_id=fallback_chat_id,
+            fallback_receive_id=reply_fallback_id,
+            fallback_receive_id_type=fallback_receive_id_type,
         ):
             continue
 
@@ -908,13 +1048,17 @@ def reply_agent_response(
         safe_reply_text(
             message_id,
             card_to_text(card)[:3000],
-            fallback_receive_id=user_id,
+            fallback_chat_id=fallback_chat_id,
+            fallback_receive_id=reply_fallback_id,
+            fallback_receive_id_type=fallback_receive_id_type,
         )
 
     safe_reply_interactive(
         message_id,
         build_feedback_card(question or "", answer),
-        fallback_receive_id=user_id,
+        fallback_chat_id=fallback_chat_id,
+        fallback_receive_id=reply_fallback_id,
+        fallback_receive_id_type=fallback_receive_id_type,
     )
 
 
@@ -1259,7 +1403,15 @@ def handle_message_event(payload: dict[str, Any]) -> dict[str, Any]:
     message_id = message.get("message_id")
     chat_id = message.get("chat_id") or message_id or "default"
     user_id = sender_id_from_event(event)
+    fallback_receive_id, fallback_receive_id_type = receive_target_from_event(event)
     text = parse_text_message(message)
+    log_event_diagnostics(
+        payload,
+        event,
+        message,
+        fallback_receive_id,
+        fallback_receive_id_type,
+    )
 
     if not message_id:
         logger.warning("飞书事件缺少 message_id")
@@ -1269,7 +1421,9 @@ def handle_message_event(payload: dict[str, Any]) -> dict[str, Any]:
         safe_reply_text(
             message_id,
             "目前我先支持文字消息。你可以直接问：包图怎么走、推荐食堂、校历在哪里、报到要带什么。",
-            fallback_receive_id=user_id,
+            fallback_chat_id=chat_id,
+            fallback_receive_id=fallback_receive_id,
+            fallback_receive_id_type=fallback_receive_id_type,
         )
         return {}
 
@@ -1278,12 +1432,16 @@ def handle_message_event(payload: dict[str, Any]) -> dict[str, Any]:
         if not safe_reply_interactive(
             message_id,
             build_help_card(),
-            fallback_receive_id=user_id,
+            fallback_chat_id=chat_id,
+            fallback_receive_id=fallback_receive_id,
+            fallback_receive_id_type=fallback_receive_id_type,
         ):
             safe_reply_text(
                 message_id,
                 "可以问我：包图怎么走、推荐食堂、校历在哪里、给我一份新生报到清单。发送“设置”可以调整身份、校区和模型。",
-                fallback_receive_id=user_id,
+                fallback_chat_id=chat_id,
+                fallback_receive_id=fallback_receive_id,
+                fallback_receive_id_type=fallback_receive_id_type,
             )
         return {}
 
@@ -1291,12 +1449,16 @@ def handle_message_event(payload: dict[str, Any]) -> dict[str, Any]:
         if not safe_reply_interactive(
             message_id,
             build_settings_card(user_id),
-            fallback_receive_id=user_id,
+            fallback_chat_id=chat_id,
+            fallback_receive_id=fallback_receive_id,
+            fallback_receive_id_type=fallback_receive_id_type,
         ):
             safe_reply_text(
                 message_id,
                 "设置卡片暂时发送失败。你仍然可以在问题里说明“我是家长”“闵行校区”等信息，我会按上下文处理。",
-                fallback_receive_id=user_id,
+                fallback_chat_id=chat_id,
+                fallback_receive_id=fallback_receive_id,
+                fallback_receive_id_type=fallback_receive_id_type,
             )
         return {}
 
@@ -1305,12 +1467,20 @@ def handle_message_event(payload: dict[str, Any]) -> dict[str, Any]:
         safe_reply_text(
             message_id,
             "已清空当前飞书会话上下文。",
-            fallback_receive_id=user_id,
+            fallback_chat_id=chat_id,
+            fallback_receive_id=fallback_receive_id,
+            fallback_receive_id_type=fallback_receive_id_type,
         )
         return {}
 
     try:
-        safe_reply_text(message_id, THINKING_TEXT, fallback_receive_id=user_id)
+        safe_reply_text(
+            message_id,
+            THINKING_TEXT,
+            fallback_chat_id=chat_id,
+            fallback_receive_id=fallback_receive_id,
+            fallback_receive_id_type=fallback_receive_id_type,
+        )
         settings = get_user_settings(user_id)
         chat_response = chat_with_agent(
             ChatRequest(
@@ -1327,6 +1497,9 @@ def handle_message_event(payload: dict[str, Any]) -> dict[str, Any]:
             chat_response.cards,
             user_id=user_id,
             question=text,
+            fallback_chat_id=chat_id,
+            fallback_receive_id=fallback_receive_id,
+            fallback_receive_id_type=fallback_receive_id_type,
         )
         save_turn(chat_id, text, chat_response.answer)
     except Exception:
@@ -1334,7 +1507,9 @@ def handle_message_event(payload: dict[str, Any]) -> dict[str, Any]:
         safe_reply_text(
             message_id,
             "服务暂时遇到问题，请稍后再试。如果问题持续，可以换一种问法。",
-            fallback_receive_id=user_id,
+            fallback_chat_id=chat_id,
+            fallback_receive_id=fallback_receive_id,
+            fallback_receive_id_type=fallback_receive_id_type,
         )
 
     return {}
